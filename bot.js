@@ -23,7 +23,7 @@ app.use(express.json());
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
+const GROQ_KEY = process.env.GROQ_API_KEY;
 const ALLOWED_IDS = (process.env.ALLOWED_CHAT_IDS || '').split(',').map(s => s.trim());
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -93,13 +93,13 @@ async function transcribeVoice(fileId) {
 
     const form = new FormData();
     form.append('file', buffer, {filename:'voice.ogg', contentType:'audio/ogg'});
-    form.append('model', 'whisper-1');
+    form.append('model', 'whisper-large-v3-turbo');
     form.append('language', 'en');
     form.append('prompt', 'Carroll Street Café order: coffee latte matcha wrap burrito bowl smoothie juice');
 
-    const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
-      headers: {'Authorization': `Bearer ${OPENAI_KEY}`, ...form.getHeaders()},
+      headers: {'Authorization': `Bearer ${GROQ_KEY}`, ...form.getHeaders()},
       body: form
     });
     const data = await resp.json();
