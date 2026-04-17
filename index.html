@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Carroll Street Café · POS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── RESET & BASE ── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f3ee;color:#1a1a18;font-size:15px;display:flex;flex-direction:column}
+
+/* ── LAYOUT ── */
+.app{display:flex;flex-direction:column;height:100vh;max-width:520px;margin:0 auto;width:100%;position:relative;background:#f5f3ee}
+
+/* ── HEADER ── */
+.header{background:#2c2b27;color:#fff;padding:10px 14px 8px;flex-shrink:0}
+.header-top{display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:15px;font-weight:600;letter-spacing:0.3px}
+.header .sub{font-size:10px;opacity:0.5;margin-top:1px}
+.clock{font-size:12px;opacity:0.6;font-variant-numeric:tabular-nums}
+.conn-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#555;margin-left:6px;vertical-align:middle}
+.conn-dot.ok{background:#4caf87}
+.conn-dot.err{background:#e25c4b}
+
+/* ── STAFF BAR ── */
+.staff-bar{background:#3a3936;padding:7px 12px;display:flex;gap:6px;align-items:center;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.staff-bar::-webkit-scrollbar{display:none}
+.staff-lbl{color:#888;font-size:11px;white-space:nowrap;margin-right:2px}
+.s-btn{border:1px solid #5a5955;background:transparent;color:#bbb;border-radius:14px;padding:4px 11px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.s-btn.on{background:#fff;color:#2c2b27;border-color:#fff;font-weight:500}
+
+/* ── TABS ── */
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e8e6e0;flex-shrink:0}
+.tab{flex:1;padding:9px 2px 8px;text-align:center;font-size:12px;cursor:pointer;color:#888;border-bottom:2px solid transparent;user-select:none}
+.tab.on{color:#1a1a18;border-bottom-color:#2c2b27;font-weight:600}
+.badge{background:#e25c4b;color:#fff;border-radius:9px;padding:1px 5px;font-size:10px;margin-left:3px}
+
+/* ── VIEWS ── */
+.views{flex:1;overflow:hidden;position:relative}
+.view{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;padding-bottom:80px}
+.view.on{display:block}
+
+/* ── MENU ── */
+.cat-hdr{padding:9px 14px 5px;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.9px;background:#edeae3;position:sticky;top:0;z-index:10}
+.m-item{display:flex;align-items:center;padding:11px 14px;background:#fff;border-bottom:1px solid #f0ede6;gap:10px;cursor:pointer;user-select:none}
+.m-item:active{background:#f8f6f1}
+.m-info{flex:1;min-width:0}
+.m-name{font-size:14px;font-weight:500;line-height:1.3}
+.m-desc{font-size:11px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-price{font-size:13px;color:#666;min-width:70px;text-align:right;white-space:nowrap}
+.plus-btn{width:32px;height:32px;border-radius:50%;background:#2c2b27;color:#fff;border:none;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding-bottom:1px}
+
+/* ── SIZE MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:none;align-items:flex-end;justify-content:center}
+.overlay.on{display:flex}
+.sheet{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:520px;padding:22px 18px 32px;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+.sheet h3{font-size:17px;font-weight:600;margin-bottom:3px}
+.sheet .sdesc{font-size:12px;color:#999;margin-bottom:18px}
+.sz-opt{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:10px;cursor:pointer;transition:background .15s}
+.sz-opt:active{background:#f5f3ee}
+.sz-label{font-size:15px;font-weight:500}
+.sz-price{font-size:15px;color:#555}
+.cancel-btn{width:100%;padding:13px;border:none;background:#f0ede6;border-radius:12px;font-size:15px;color:#666;cursor:pointer;margin-top:6px}
+
+/* ── ORDER ── */
+.empty-state{padding:48px 24px;text-align:center;color:#aaa;font-size:14px;line-height:2}
+.o-item{display:flex;align-items:center;padding:12px 14px;background:#fff;border-bottom:1px solid #f0ede6;gap:10px}
+.o-info{flex:1;min-width:0}
+.o-name{font-size:14px;font-weight:500}
+.o-sub{font-size:11px;color:#999;margin-top:1px}
+.qty-row{display:flex;align-items:center;gap:10px}
+.q-btn{width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#444;line-height:1}
+.q-btn:active{background:#f0ede6}
+.q-num{font-size:14px;font-weight:600;min-width:18px;text-align:center}
+.o-price{font-size:14px;font-weight:500;min-width:52px;text-align:right}
+.order-footer{padding:14px;background:#fff;border-top:1px solid #e8e6e0}
+.note-in{width:100%;padding:10px 12px;border:1px solid #e8e6e0;border-radius:10px;font-size:14px;margin-bottom:12px;background:#fafaf8;color:#1a1a18;outline:none}
+.note-in:focus{border-color:#aaa}
+.total-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.total-lbl{font-size:14px;color:#888}
+.total-val{font-size:22px;font-weight:700}
+.pay-btn{width:100%;padding:15px;background:#2c2b27;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;letter-spacing:0.2px}
+.pay-btn:active{opacity:0.85}
+.pay-btn:disabled{opacity:0.35;cursor:not-allowed}
+
+/* ── CART BAR ── */
+.cart-bar{position:absolute;bottom:0;left:0;right:0;background:#2c2b27;color:#fff;padding:12px 14px;display:none;align-items:center;justify-content:space-between;gap:12px;z-index:50}
+.cart-bar.on{display:flex}
+.cb-info .cb-c{font-size:11px;opacity:0.65}
+.cb-info .cb-t{font-size:17px;font-weight:600}
+.view-btn{background:#fff;color:#2c2b27;border:none;border-radius:9px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer}
+
+/* ── REPORTS ── */
+.rpt-hdr{padding:14px 14px 10px;background:#fff;border-bottom:1px solid #f0ede6}
+.rpt-title{font-size:17px;font-weight:600}
+.rpt-date{font-size:12px;color:#999;margin-top:2px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px}
+.stat-c{background:#fff;border-radius:12px;padding:14px;border:1px solid #f0ede6}
+.stat-c .sl{font-size:11px;color:#999;margin-bottom:5px}
+.stat-c .sv{font-size:22px;font-weight:700}
+.stat-c .ss{font-size:11px;color:#bbb;margin-top:3px}
+.section{padding:0 14px 14px}
+.sec-lbl{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;padding-top:6px}
+.top-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f5f3ee;font-size:14px}
+.top-row:last-child{border:none}
+.top-right{color:#888;font-size:13px}
+.log-card{background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid #f0ede6}
+.log-top{display:flex;justify-content:space-between;font-size:14px;font-weight:500}
+.log-staff{font-size:11px;color:#999;margin-top:3px;display:flex;align-items:center;gap:4px}
+.log-src{font-size:10px;background:#f0ede6;color:#888;padding:1px 6px;border-radius:8px}
+.log-items{font-size:12px;color:#aaa;margin-top:6px;line-height:1.6}
+.log-note{font-style:italic;color:#bbb;font-size:11px;margin-top:4px}
+.clr-btn{margin:4px 14px 14px;padding:12px;border:1px solid #e25c4b;background:transparent;color:#e25c4b;border-radius:10px;width:calc(100% - 28px);font-size:14px;cursor:pointer}
+.export-btn{margin:0 14px 8px;padding:12px;border:1px solid #2c2b27;background:transparent;color:#2c2b27;border-radius:10px;width:calc(100% - 28px);font-size:14px;cursor:pointer;font-weight:500}
+
+/* ── MANAGE ── */
+.add-form{margin:14px;padding:16px;background:#fff;border-radius:14px;border:1px solid #f0ede6}
+.add-form h3{font-size:15px;font-weight:600;margin-bottom:14px}
+.f-row{display:flex;gap:8px;margin-bottom:8px}
+.f-in{flex:1;padding:10px 11px;border:1px solid #e8e6e0;border-radius:9px;font-size:14px;background:#fafaf8;color:#1a1a18;outline:none}
+.f-in:focus{border-color:#aaa}
+.f-sel{width:100%;padding:10px 11px;border:1px solid #e8e6e0;border-radius:9px;font-size:14px;background:#fafaf8;color:#1a1a18;margin-bottom:8px;outline:none}
+.f-btn{padding:10px 16px;background:#2c2b27;color:#fff;border:none;border-radius:9px;font-size:14px;cursor:pointer;font-weight:500;white-space:nowrap}
+.f-full{width:100%;margin-top:4px}
+.mg-item{display:flex;align-items:center;padding:11px 14px;background:#fff;border-bottom:1px solid #f0ede6;gap:8px}
+.mg-name{flex:1;font-size:14px;font-weight:500}
+.mg-cat{font-size:10px;color:#999;background:#f0ede6;padding:2px 7px;border-radius:8px;margin-left:5px}
+.mg-price{font-size:12px;color:#888;margin-right:8px}
+.ed-btn{padding:5px 12px;border:1px solid #ddd;background:#fff;border-radius:7px;font-size:12px;cursor:pointer}
+.mg-hid{opacity:0.4}
+
+/* ── TELEGRAM CONFIG ── */
+.tg-info{margin:14px;padding:16px;background:#fff;border-radius:14px;border:1px solid #f0ede6}
+.tg-info h3{font-size:15px;font-weight:600;margin-bottom:10px}
+.tg-info p{font-size:13px;color:#666;line-height:1.7;margin-bottom:8px}
+.tg-info code{background:#f5f3ee;padding:2px 6px;border-radius:5px;font-size:12px;font-family:monospace;color:#444;word-break:break-all}
+.tg-info .step{font-size:12px;font-weight:600;color:#2c2b27;margin-bottom:4px}
+.setting-row{display:flex;align-items:center;padding:12px 14px;background:#fff;border-bottom:1px solid #f0ede6;gap:10px}
+.setting-label{flex:1;font-size:14px}
+.setting-sub{font-size:11px;color:#999;margin-top:2px}
+.setting-in{padding:8px 10px;border:1px solid #e8e6e0;border-radius:8px;font-size:13px;background:#fafaf8;color:#1a1a18;width:160px;outline:none}
+.save-settings-btn{margin:14px;width:calc(100% - 28px);padding:13px;background:#2c2b27;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+
+/* ── TOAST ── */
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#2c2b27;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.loading{text-align:center;padding:30px;color:#aaa;font-size:14px}
+
+/* ── SETUP SCREEN ── */
+.setup{position:fixed;inset:0;background:#f5f3ee;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+.setup h2{font-size:22px;font-weight:700;margin-bottom:8px;text-align:center}
+.setup p{font-size:14px;color:#888;text-align:center;margin-bottom:28px;line-height:1.7}
+.setup-in{width:100%;max-width:400px;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:14px;margin-bottom:10px;background:#fff;color:#1a1a18;outline:none}
+.setup-btn{width:100%;max-width:400px;padding:14px;background:#2c2b27;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN (shown if no Supabase config) -->
+<div class="setup" id="setup-screen">
+  <div style="font-size:40px;margin-bottom:16px">☕</div>
+  <h2>Carroll Street Café</h2>
+  <p>Enter your Supabase credentials to connect.<br>Find these in your Supabase project under<br><strong>Settings → API</strong></p>
+  <input class="setup-in" id="sb-url" placeholder="Supabase Project URL (https://xxx.supabase.co)" />
+  <input class="setup-in" id="sb-key" placeholder="Supabase anon/public key" />
+  <button class="setup-btn" onclick="saveConfig()">Connect & Launch POS</button>
+  <p style="margin-top:16px;font-size:11px;color:#bbb">Credentials saved locally on this device only</p>
+</div>
+
+<div class="app" id="app" style="display:none">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header h1">Carroll Street Café</div>
+        <div class="sub">Medgar Evers College · POS System</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="clock" id="clock">--:--</span>
+        <span class="conn-dot" id="conn-dot" title="Connection status"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAFF BAR -->
+  <div class="staff-bar">
+    <span class="staff-lbl">Staff:</span>
+    <button class="s-btn on" onclick="setStaff('Cashier 1',this)">Cashier 1</button>
+    <button class="s-btn" onclick="setStaff('Cashier 2',this)">Cashier 2</button>
+    <button class="s-btn" onclick="setStaff('Cashier 3',this)">Cashier 3</button>
+    <button class="s-btn" onclick="setStaff('Cashier 4',this)">Cashier 4</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab on" onclick="goTab('menu',this)">Menu</div>
+    <div class="tab" onclick="goTab('order',this)">Order<span class="badge" id="cb-badge" style="display:none"></span></div>
+    <div class="tab" onclick="goTab('report',this)">Reports</div>
+    <div class="tab" onclick="goTab('manage',this)">Manage</div>
+  </div>
+
+  <!-- VIEWS -->
+  <div class="views">
+    <div class="view on" id="v-menu"></div>
+
+    <div class="view" id="v-order">
+      <div class="empty-state" id="o-empty">🛒<br>No items yet.<br>Go to Menu to add items.</div>
+      <div id="o-list"></div>
+      <div id="o-footer" style="display:none" class="order-footer">
+        <input class="note-in" id="o-note" placeholder="Order note (table #, name, special request…)" />
+        <div class="total-row">
+          <span class="total-lbl">Total</span>
+          <span class="total-val" id="o-total">$0.00</span>
+        </div>
+        <button class="pay-btn" id="pay-btn" onclick="confirmSale()">✓ Confirm Sale</button>
+      </div>
+    </div>
+
+    <div class="view" id="v-report">
+      <div class="rpt-hdr">
+        <div class="rpt-title">Today's Report</div>
+        <div class="rpt-date" id="r-date"></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-c"><div class="sl">Revenue</div><div class="sv" id="r-rev">$0.00</div></div>
+        <div class="stat-c"><div class="sl">Sales</div><div class="sv" id="r-cnt">0</div></div>
+        <div class="stat-c"><div class="sl">Items Sold</div><div class="sv" id="r-itms">0</div></div>
+        <div class="stat-c"><div class="sl">Avg. Sale</div><div class="sv" id="r-avg">$0.00</div></div>
+      </div>
+      <div class="section">
+        <div class="sec-lbl">Top items today</div>
+        <div id="r-top"><div style="color:#bbb;font-size:13px">No sales yet</div></div>
+      </div>
+      <div class="section">
+        <div class="sec-lbl">By staff member</div>
+        <div id="r-staff"><div style="color:#bbb;font-size:13px">No sales yet</div></div>
+      </div>
+      <div class="section">
+        <div class="sec-lbl">Sale log</div>
+        <div id="r-log"></div>
+      </div>
+      <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+      <button class="clr-btn" onclick="clearDay()">Clear today's data</button>
+    </div>
+
+    <div class="view" id="v-manage">
+      <!-- Add new item form -->
+      <div class="add-form">
+        <h3>Add new item</h3>
+        <div class="f-row">
+          <input class="f-in" id="n-name" placeholder="Item name" />
+        </div>
+        <div class="f-row">
+          <input class="f-in" id="n-price" placeholder="S price ($)" type="number" step="0.01" min="0" />
+          <input class="f-in" id="n-price2" placeholder="L price (opt)" type="number" step="0.01" min="0" />
+        </div>
+        <select class="f-sel" id="n-cat"></select>
+        <div class="f-row">
+          <input class="f-in" id="n-desc" placeholder="Description (optional)" />
+        </div>
+        <button class="f-btn f-full" onclick="addNewItem()">+ Add to Menu</button>
+      </div>
+      <div style="padding:0 14px 8px;font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.8px">All items (tap to edit)</div>
+      <div id="mg-list"></div>
+
+      <!-- Telegram Setup -->
+      <div class="tg-info" style="margin-top:14px">
+        <h3>🤖 Telegram Bot Setup</h3>
+        <div class="step">Step 1 — Create your bot</div>
+        <p>Message <code>@BotFather</code> on Telegram → /newbot → get your <strong>Bot Token</strong></p>
+        <div class="step">Step 2 — Get your Chat ID</div>
+        <p>Message <code>@userinfobot</code> on Telegram to get your group or personal Chat ID</p>
+        <div class="step">Step 3 — Deploy the bot server</div>
+        <p>Upload <code>bot.js</code> to Railway (free tier). Set env vars:<br>
+        <code>BOT_TOKEN</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_KEY</code>, <code>ALLOWED_CHAT_ID</code></p>
+        <div class="step">Step 4 — Set webhook</div>
+        <p>Visit: <code>https://api.telegram.org/bot&lt;TOKEN&gt;/setWebhook?url=https://&lt;your-railway-url&gt;/webhook</code></p>
+      </div>
+
+      <!-- Staff name editor -->
+      <div class="add-form" style="margin-top:0">
+        <h3>Staff names</h3>
+        <div id="staff-name-inputs"></div>
+        <button class="f-btn f-full" onclick="saveStaffNames()">Save names</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIZE PICKER MODAL -->
+  <div class="overlay" id="sz-overlay" onclick="closeSheet(event)">
+    <div class="sheet" id="sz-sheet">
+      <h3 id="sh-title"></h3>
+      <div class="sdesc" id="sh-desc"></div>
+      <div id="sh-opts"></div>
+      <button class="cancel-btn" onclick="closeOverlay()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- CART BAR -->
+  <div class="cart-bar" id="cart-bar">
+    <div class="cb-info">
+      <div class="cb-c" id="cb-c"></div>
+      <div class="cb-t" id="cb-t"></div>
+    </div>
+    <button class="view-btn" onclick="goTab('order',null)">View Order</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────
+const CATS = ['Hot Drinks','Iced Drinks','Herbal Teas','Fresh Juices','Smoothies','Canned Soda','Breakfast & Light Bites','Wraps & Sandwiches','Bowls'];
+
+const DEFAULT_MENU = [
+  {id:1,cat:'Hot Drinks',name:'Coffee (Regular)',price:2.75,price2:3.50,desc:'S/L'},
+  {id:2,cat:'Hot Drinks',name:'Americano',price:3.25,price2:3.95,desc:'S/L'},
+  {id:3,cat:'Hot Drinks',name:'Latte',price:4.50,price2:5.50,desc:'S/L'},
+  {id:4,cat:'Hot Drinks',name:'Cappuccino',price:4.50,price2:5.50,desc:'S/L'},
+  {id:5,cat:'Hot Drinks',name:'Matcha Latte',price:5.25,price2:6.25,desc:'S/L'},
+  {id:6,cat:'Hot Drinks',name:'Hot Chocolate',price:3.75,price2:4.75,desc:'S/L'},
+  {id:7,cat:'Hot Drinks',name:'Add Oat Milk',price:0.75,desc:'Add-on +$0.75'},
+  {id:8,cat:'Hot Drinks',name:'Add Extra Shot',price:1.25,desc:'Add-on +$1.25'},
+  {id:9,cat:'Hot Drinks',name:'Add Flavor Syrup',price:0.75,desc:'Add-on +$0.75'},
+  {id:10,cat:'Iced Drinks',name:'Iced Coffee',price:3.50,price2:4.50,desc:'S/L'},
+  {id:11,cat:'Iced Drinks',name:'Iced Latte',price:4.75,price2:5.95,desc:'S/L'},
+  {id:12,cat:'Iced Drinks',name:'Iced Matcha Latte',price:5.50,price2:6.75,desc:'S/L'},
+  {id:13,cat:'Herbal Teas',name:'Ginger Tea',price:3.25,price2:3.95,desc:'Hot only · S/L'},
+  {id:14,cat:'Herbal Teas',name:'Chamomile Tea',price:3.25,price2:3.95,desc:'Hot only · S/L'},
+  {id:15,cat:'Herbal Teas',name:'Peppermint Tea',price:3.25,price2:3.95,desc:'Hot only · S/L'},
+  {id:16,cat:'Herbal Teas',name:'Hibiscus Tea',price:3.25,price2:3.95,desc:'Hot only · S/L'},
+  {id:17,cat:'Fresh Juices',name:'Apple, Carrot & Beet',price:9.00,price2:12.00,desc:'S/L'},
+  {id:18,cat:'Fresh Juices',name:'Apple, Parsley & Lemon',price:9.00,price2:12.00,desc:'S/L'},
+  {id:19,cat:'Smoothies',name:'Apple, Banana & Blueberry',price:7.50,price2:9.50,desc:'S/L'},
+  {id:20,cat:'Smoothies',name:'Pineapple Mango Hemp Lime',price:7.50,price2:9.50,desc:'S/L'},
+  {id:21,cat:'Smoothies',name:'Chocolate Banana',price:7.50,price2:9.50,desc:'Cacao, bananas, almond butter, oat milk · S/L'},
+  {id:22,cat:'Smoothies',name:'Add Protein',price:2.00,desc:'Add-on +$2.00'},
+  {id:23,cat:'Canned Soda',name:'Canned Soda',price:2.50,desc:''},
+  {id:24,cat:'Breakfast & Light Bites',name:'Avocado Toast',price:7.50,desc:'Ezekiel bread, avocado, tomatoes'},
+  {id:25,cat:'Breakfast & Light Bites',name:'Parfait',price:6.50,desc:'Chia porridge, fresh fruit, granola'},
+  {id:26,cat:'Breakfast & Light Bites',name:'Blueberry Muffin',price:3.00,desc:''},
+  {id:27,cat:'Breakfast & Light Bites',name:'Corn Muffin',price:3.00,desc:''},
+  {id:28,cat:'Breakfast & Light Bites',name:'Plain Bagel',price:1.50,desc:''},
+  {id:29,cat:'Breakfast & Light Bites',name:'Butter Bagel w/ Cream Cheese',price:2.00,desc:''},
+  {id:30,cat:'Wraps & Sandwiches',name:'Vegan Tuna Wrap',price:9.50,desc:'Chickpea salad, lettuce, tomatoes'},
+  {id:31,cat:'Wraps & Sandwiches',name:'Add Avocado',price:0.75,desc:'Add-on +$0.75'},
+  {id:32,cat:'Wraps & Sandwiches',name:'Veggie Wrap',price:8.50,desc:'Roasted veg, lettuce, tomato, hummus or tzatziki'},
+  {id:33,cat:'Wraps & Sandwiches',name:'Falafel Wrap',price:8.50,desc:'Falafels, tzatziki, lettuce, tomato, red onion'},
+  {id:34,cat:'Wraps & Sandwiches',name:'Grilled Chicken Sandwich',price:10.50,desc:'Grilled chicken, lettuce, tomatoes, red onions, sauce'},
+  {id:35,cat:'Wraps & Sandwiches',name:'Burrito',price:10.50,desc:'Brown rice, black beans, sour cream, cheddar, hot sauce'},
+  {id:36,cat:'Wraps & Sandwiches',name:'Add Chicken to Burrito',price:2.50,desc:'Add-on +$2.50'},
+  {id:37,cat:'Wraps & Sandwiches',name:'Add Guacamole',price:1.75,desc:'Add-on +$1.75'},
+  {id:38,cat:'Bowls',name:'Build Your Rice Bowl',price:10.00,desc:'Includes 3 toppings (chicken & avocado exempt)'},
+  {id:39,cat:'Bowls',name:'Salad Bowl',price:10.00,desc:'Includes 3 toppings (chicken & avocado exempt)'},
+  {id:40,cat:'Bowls',name:'Extra Bowl Topping',price:0.75,desc:'Add-on per topping'},
+  {id:41,cat:'Bowls',name:'Add Chicken to Bowl',price:2.50,desc:'Add-on +$2.50'},
+];
+
+// ── STATE ──────────────────────────────────────────────────
+let sb = null;
+let menu = JSON.parse(localStorage.getItem('csc_menu') || 'null') || DEFAULT_MENU.map(i=>({...i}));
+let cart = [];
+let staff = 'Cashier 1';
+let staffNames = JSON.parse(localStorage.getItem('csc_staff') || '["Cashier 1","Cashier 2","Cashier 3","Cashier 4"]');
+let nextId = Math.max(...menu.map(i=>i.id)) + 1;
+let todaySales = [];
+let realtimeSub = null;
+
+// ── CONFIG ──────────────────────────────────────────────────
+function saveConfig(){
+  const url = document.getElementById('sb-url').value.trim();
+  const key = document.getElementById('sb-key').value.trim();
+  if(!url || !key){ alert('Please enter both URL and key.'); return; }
+  localStorage.setItem('csc_sb_url', url);
+  localStorage.setItem('csc_sb_key', key);
+  initApp();
+}
+
+function initApp(){
+  const url = localStorage.getItem('csc_sb_url');
+  const key = localStorage.getItem('csc_sb_key');
+  if(!url || !key){ document.getElementById('setup-screen').style.display='flex'; return; }
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  sb = supabase.createClient(url, key);
+  document.getElementById('conn-dot').className='conn-dot ok';
+  loadTodaySales();
+  subscribeRealtime();
+  buildMenu();
+  buildManage();
+  buildStaffBar();
+  updateClock();
+  setInterval(updateClock, 15000);
+}
+
+// ── SUPABASE ──────────────────────────────────────────────────
+async function loadTodaySales(){
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const {data, error} = await sb.from('sales').select('*').gte('created_at', today+'T00:00:00').order('created_at',{ascending:false});
+    if(error) throw error;
+    todaySales = data || [];
+    buildReport();
+  } catch(e) {
+    document.getElementById('conn-dot').className='conn-dot err';
+    showToast('DB error: '+e.message);
+  }
+}
+
+function subscribeRealtime(){
+  if(realtimeSub) realtimeSub.unsubscribe();
+  realtimeSub = sb.channel('sales-channel')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'sales'},(payload)=>{
+      todaySales.unshift(payload.new);
+      buildReport();
+      showToast('💰 New sale: $'+Number(payload.new.total).toFixed(2)+' by '+payload.new.staff);
+    }).subscribe();
+}
+
+async function saveSaleToSupabase(sale){
+  try {
+    const {error} = await sb.from('sales').insert({
+      staff: sale.staff,
+      items: sale.items,
+      total: sale.total,
+      note: sale.note,
+      source: 'pos'
+    });
+    if(error) throw error;
+    return true;
+  } catch(e) {
+    showToast('Save error: '+e.message);
+    return false;
+  }
+}
+
+// ── MENU BUILD ──────────────────────────────────────────────────
+function buildMenu(){
+  const el = document.getElementById('v-menu');
+  el.innerHTML = '';
+  const byCat = {};
+  menu.filter(i=>!i.hidden).forEach(i=>{
+    if(!byCat[i.cat]) byCat[i.cat]=[];
+    byCat[i.cat].push(i);
+  });
+  CATS.forEach(cat=>{
+    if(!byCat[cat]||!byCat[cat].length) return;
+    const ch = document.createElement('div');
+    ch.className='cat-hdr'; ch.textContent=cat; el.appendChild(ch);
+    byCat[cat].forEach(item=>{
+      const priceStr = item.price2 ? '$'+item.price.toFixed(2)+' / $'+item.price2.toFixed(2) : '$'+item.price.toFixed(2);
+      const row = document.createElement('div');
+      row.className='m-item';
+      row.innerHTML=`<div class="m-info"><div class="m-name">${item.name}</div>${item.desc?`<div class="m-desc">${item.desc}</div>`:''}</div><div class="m-price">${priceStr}</div><button class="plus-btn" onclick="addItem(${item.id})">+</button>`;
+      el.appendChild(row);
+    });
+  });
+}
+
+// ── ADD TO CART ──────────────────────────────────────────────────
+function addItem(id){
+  const item = menu.find(i=>i.id===id);
+  if(!item) return;
+  if(item.price2){ showSizeModal(item); }
+  else { pushToCart(item, item.price, ''); }
+}
+
+function showSizeModal(item){
+  document.getElementById('sh-title').textContent = item.name;
+  document.getElementById('sh-desc').textContent = item.desc||'';
+  document.getElementById('sh-opts').innerHTML = `
+    <div class="sz-opt" onclick="pushToCart(menu.find(i=>i.id==${item.id}),${item.price},'Small');closeOverlay()">
+      <span class="sz-label">Small</span><span class="sz-price">$${item.price.toFixed(2)}</span>
+    </div>
+    <div class="sz-opt" onclick="pushToCart(menu.find(i=>i.id==${item.id}),${item.price2},'Large');closeOverlay()">
+      <span class="sz-label">Large</span><span class="sz-price">$${item.price2.toFixed(2)}</span>
+    </div>`;
+  document.getElementById('sz-overlay').classList.add('on');
+}
+
+function closeOverlay(){ document.getElementById('sz-overlay').classList.remove('on'); }
+function closeSheet(e){ if(e.target===document.getElementById('sz-overlay')) closeOverlay(); }
+
+function pushToCart(item, price, size){
+  const key = item.id+'-'+size;
+  const ex = cart.find(c=>c.key===key);
+  if(ex){ ex.qty++; }
+  else { cart.push({key, id:item.id, name:item.name+(size?' ('+size+')':''), price, qty:1}); }
+  updateCartBar();
+  showToast(item.name+' added');
+}
+
+function updateCartBar(){
+  const total = cart.reduce((s,c)=>s+c.price*c.qty, 0);
+  const qty = cart.reduce((s,c)=>s+c.qty, 0);
+  const bar = document.getElementById('cart-bar');
+  const badge = document.getElementById('cb-badge');
+  if(qty===0){ bar.classList.remove('on'); badge.style.display='none'; return; }
+  bar.classList.add('on');
+  badge.style.display='';
+  badge.textContent = qty;
+  document.getElementById('cb-c').textContent = qty+' item'+(qty!==1?'s':'');
+  document.getElementById('cb-t').textContent = '$'+total.toFixed(2);
+}
+
+// ── ORDER VIEW ──────────────────────────────────────────────────
+function buildOrder(){
+  const list = document.getElementById('o-list');
+  const empty = document.getElementById('o-empty');
+  const footer = document.getElementById('o-footer');
+  list.innerHTML='';
+  if(!cart.length){ empty.style.display='block'; footer.style.display='none'; return; }
+  empty.style.display='none'; footer.style.display='block';
+  cart.forEach((c,i)=>{
+    const row=document.createElement('div');
+    row.className='o-item';
+    row.innerHTML=`<div class="o-info"><div class="o-name">${c.name}</div><div class="o-sub">$${c.price.toFixed(2)} each</div></div>
+      <div class="qty-row">
+        <button class="q-btn" onclick="chgQty(${i},-1)">−</button>
+        <span class="q-num">${c.qty}</span>
+        <button class="q-btn" onclick="chgQty(${i},1)">+</button>
+      </div>
+      <div class="o-price">$${(c.price*c.qty).toFixed(2)}</div>`;
+    list.appendChild(row);
+  });
+  const total=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  document.getElementById('o-total').textContent='$'+total.toFixed(2);
+}
+
+function chgQty(i,d){
+  cart[i].qty+=d;
+  if(cart[i].qty<=0) cart.splice(i,1);
+  updateCartBar(); buildOrder();
+}
+
+async function confirmSale(){
+  if(!cart.length) return;
+  const btn = document.getElementById('pay-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  const total=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  const note=document.getElementById('o-note').value.trim();
+  const sale={staff, items:cart.map(c=>({...c})), total, note};
+  const ok = await saveSaleToSupabase(sale);
+  if(ok){
+    showToast('✓ Sale saved — $'+total.toFixed(2));
+    cart=[]; document.getElementById('o-note').value='';
+    updateCartBar(); buildOrder();
+    goTab('report',null); buildReport();
+  }
+  btn.disabled=false; btn.textContent='✓ Confirm Sale';
+}
+
+// ── REPORTS ──────────────────────────────────────────────────
+function buildReport(){
+  const d=new Date();
+  document.getElementById('r-date').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const today=d.toDateString();
+  const s=todaySales.filter(x=>new Date(x.created_at).toDateString()===today);
+  const rev=s.reduce((a,x)=>a+Number(x.total),0);
+  const itms=s.reduce((a,x)=>a+(x.items||[]).reduce((b,i)=>b+i.qty,0),0);
+  document.getElementById('r-rev').textContent='$'+rev.toFixed(2);
+  document.getElementById('r-cnt').textContent=s.length;
+  document.getElementById('r-itms').textContent=itms;
+  document.getElementById('r-avg').textContent=s.length?'$'+(rev/s.length).toFixed(2):'$0.00';
+
+  // top items
+  const imap={};
+  s.forEach(sale=>(sale.items||[]).forEach(i=>{
+    if(!imap[i.name]) imap[i.name]={qty:0,rev:0};
+    imap[i.name].qty+=i.qty; imap[i.name].rev+=i.price*i.qty;
+  }));
+  const top=Object.entries(imap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
+  document.getElementById('r-top').innerHTML=top.length
+    ?top.map(([n,v])=>`<div class="top-row"><span>${n}</span><span class="top-right">${v.qty}× · $${v.rev.toFixed(2)}</span></div>`).join('')
+    :'<div style="color:#bbb;font-size:13px">No sales yet</div>';
+
+  // staff
+  const smap={};
+  s.forEach(x=>{ if(!smap[x.staff]) smap[x.staff]={t:0,r:0}; smap[x.staff].t++; smap[x.staff].r+=Number(x.total); });
+  document.getElementById('r-staff').innerHTML=Object.entries(smap).length
+    ?Object.entries(smap).map(([n,v])=>`<div class="top-row"><span>${n}</span><span class="top-right">${v.t} sales · $${v.r.toFixed(2)}</span></div>`).join('')
+    :'<div style="color:#bbb;font-size:13px">No sales yet</div>';
+
+  // log
+  document.getElementById('r-log').innerHTML=[...s].slice(0,30).map(x=>{
+    const t=new Date(x.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const src=x.source==='telegram'?'<span class="log-src">📱 Telegram</span>':'<span class="log-src">POS</span>';
+    return `<div class="log-card">
+      <div class="log-top"><span>${t}</span><span>$${Number(x.total).toFixed(2)}</span></div>
+      <div class="log-staff">${x.staff} ${src}</div>
+      <div class="log-items">${(x.items||[]).map(i=>i.qty+'× '+i.name).join(', ')}</div>
+      ${x.note?`<div class="log-note">${x.note}</div>`:''}
+    </div>`;
+  }).join('')||'<div style="color:#bbb;font-size:13px">No sales recorded today</div>';
+}
+
+function exportCSV(){
+  const today=new Date().toDateString();
+  const rows=todaySales.filter(x=>new Date(x.created_at).toDateString()===today);
+  const hdr=['Time','Staff','Items','Total','Note','Source'];
+  const lines=rows.map(x=>[
+    new Date(x.created_at).toLocaleTimeString(),
+    x.staff,
+    '"'+(x.items||[]).map(i=>i.qty+'x '+i.name).join(', ')+'"',
+    x.total,
+    '"'+(x.note||'')+'"',
+    x.source
+  ].join(','));
+  const csv=[hdr.join(','),...lines].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='carroll-street-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+async function clearDay(){
+  if(!confirm('Delete ALL of today\'s sales? This cannot be undone.')) return;
+  const today=new Date().toISOString().slice(0,10);
+  await sb.from('sales').delete().gte('created_at',today+'T00:00:00');
+  todaySales=[]; buildReport(); showToast('Today\'s data cleared');
+}
+
+// ── MANAGE ──────────────────────────────────────────────────
+function buildManage(){
+  const sel=document.getElementById('n-cat');
+  sel.innerHTML=CATS.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const list=document.getElementById('mg-list');
+  list.innerHTML='';
+  menu.forEach(item=>{
+    const row=document.createElement('div');
+    row.className='mg-item'+(item.hidden?' mg-hid':'');
+    const priceStr=item.price2?'$'+item.price.toFixed(2)+'/$'+item.price2.toFixed(2):'$'+item.price.toFixed(2);
+    row.innerHTML=`<div class="mg-name">${item.name}<span class="mg-cat">${item.cat}</span></div>
+      <div class="mg-price">${priceStr}</div>
+      <button class="ed-btn" onclick="editItem(${item.id})">${item.hidden?'Show':'Edit'}</button>`;
+    list.appendChild(row);
+  });
+  // staff name inputs
+  const snDiv=document.getElementById('staff-name-inputs');
+  snDiv.innerHTML=staffNames.map((n,i)=>`
+    <div class="f-row" style="margin-bottom:8px">
+      <label style="font-size:12px;color:#888;min-width:60px;line-height:36px">Cashier ${i+1}</label>
+      <input class="f-in" id="sn-${i}" value="${n}" placeholder="Name" />
+    </div>`).join('');
+}
+
+function editItem(id){
+  const item=menu.find(i=>i.id===id);
+  if(item.hidden){ item.hidden=false; saveMenu(); buildMenu(); buildManage(); return; }
+  const newName=prompt('Name:',item.name); if(newName===null) return;
+  const newPrice=prompt('Price ($):',item.price); if(newPrice===null) return;
+  const newP2=item.price2?prompt('Large price ($):',item.price2):prompt('Large price (blank = single price):','');
+  const hide=confirm('Hide this item from menu?');
+  item.name=newName.trim()||item.name;
+  item.price=parseFloat(newPrice)||item.price;
+  item.price2=newP2&&parseFloat(newP2)?parseFloat(newP2):undefined;
+  item.hidden=hide;
+  saveMenu(); buildMenu(); buildManage();
+}
+
+function addNewItem(){
+  const name=document.getElementById('n-name').value.trim();
+  const price=parseFloat(document.getElementById('n-price').value);
+  const p2v=document.getElementById('n-price2').value;
+  const price2=p2v&&parseFloat(p2v)?parseFloat(p2v):undefined;
+  const cat=document.getElementById('n-cat').value;
+  const desc=document.getElementById('n-desc').value.trim();
+  if(!name||!price||!cat){ showToast('Fill in name, price & category'); return; }
+  menu.push({id:nextId++,cat,name,price,price2,desc,hidden:false});
+  saveMenu();
+  ['n-name','n-price','n-price2','n-desc'].forEach(id=>document.getElementById(id).value='');
+  buildMenu(); buildManage();
+  showToast('✓ '+name+' added');
+}
+
+function saveMenu(){ localStorage.setItem('csc_menu', JSON.stringify(menu)); }
+
+function saveStaffNames(){
+  staffNames=staffNames.map((_,i)=>document.getElementById('sn-'+i).value.trim()||'Cashier '+(i+1));
+  localStorage.setItem('csc_staff', JSON.stringify(staffNames));
+  buildStaffBar(); showToast('Staff names saved');
+}
+
+// ── STAFF BAR ──────────────────────────────────────────────────
+function buildStaffBar(){
+  const bar=document.querySelector('.staff-bar');
+  bar.innerHTML='<span class="staff-lbl">Staff:</span>'+staffNames.map((n,i)=>`<button class="s-btn${i===0?' on':''}" onclick="setStaff('${n}',this)">${n}</button>`).join('');
+  staff=staffNames[0];
+}
+
+function setStaff(name, btn){
+  staff=name;
+  document.querySelectorAll('.s-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+// ── TABS ──────────────────────────────────────────────────
+function goTab(name, btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('v-'+name).classList.add('on');
+  if(btn) btn.classList.add('on');
+  else {
+    const tabs=['menu','order','report','manage'];
+    document.querySelectorAll('.tab')[tabs.indexOf(name)]?.classList.add('on');
+  }
+  if(name==='order') buildOrder();
+  if(name==='report'){ loadTodaySales(); }
+  if(name==='manage') buildManage();
+}
+
+// ── UTILS ──────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function updateClock(){
+  document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── INIT ──────────────────────────────────────────────────
+initApp();
+</script>
+</body>
+</html>

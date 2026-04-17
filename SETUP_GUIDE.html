@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Setup Guide — Carroll Street Café POS</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:680px;margin:0 auto;padding:24px 20px 60px;background:#fafaf8;color:#1a1a18;line-height:1.7}
+h1{font-size:24px;font-weight:700;margin-bottom:6px}
+.sub{color:#888;font-size:14px;margin-bottom:32px}
+h2{font-size:17px;font-weight:600;margin:32px 0 10px;display:flex;align-items:center;gap:10px}
+.step-num{background:#2c2b27;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+p{margin-bottom:10px;font-size:14px;color:#444}
+code{background:#f0ede6;padding:2px 7px;border-radius:5px;font-size:13px;font-family:monospace;color:#333;word-break:break-all}
+pre{background:#2c2b27;color:#e8e6e0;padding:16px;border-radius:10px;font-size:13px;overflow-x:auto;margin:10px 0;line-height:1.6}
+.tip{background:#fffbf0;border-left:3px solid #f0b429;padding:12px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13px;color:#664}
+.file{background:#f5f3ee;border:1px solid #e8e6e0;border-radius:8px;padding:12px 14px;margin:10px 0;font-size:13px}
+.file strong{color:#2c2b27}
+a{color:#2c2b27}
+</style>
+</head>
+<body>
+<h1>☕ Carroll Street Café POS</h1>
+<div class="sub">Complete setup guide · Supabase + Hostinger + Telegram bot with voice</div>
+
+<h2><span class="step-num">1</span>Supabase — Create your database</h2>
+<p>Go to <a href="https://supabase.com" target="_blank">supabase.com</a> → New project → Choose a name and password.</p>
+<p>Once created, go to <strong>SQL Editor</strong> and run the contents of <code>supabase_setup.sql</code>. This creates the sales table and enables realtime.</p>
+<p>Then go to <strong>Settings → API</strong> and copy:<br>
+• <code>Project URL</code> (looks like https://xxxxx.supabase.co)<br>
+• <code>anon public</code> key (long string starting with eyJ…)</p>
+
+<h2><span class="step-num">2</span>Hostinger — Deploy the web POS</h2>
+<p>Log in to Hostinger → File Manager → go to your subdomain's <code>public_html</code> folder.</p>
+<p>Upload <code>index.html</code>. That's it — your POS is live at your subdomain.</p>
+<div class="tip">💡 Share the subdomain URL with all 4 cashiers. They open it in their phone browser — no app install needed. Bookmark it on the home screen for fastest access.</div>
+
+<h2><span class="step-num">3</span>First launch — connect Supabase</h2>
+<p>Open your subdomain URL. You'll see a one-time setup screen. Enter your Supabase URL and anon key. These are saved locally on that device — each cashier only needs to do this once.</p>
+<p>After connecting, the POS loads with the full Carroll Street Café menu ready to go.</p>
+
+<h2><span class="step-num">4</span>Telegram Bot — Create it</h2>
+<p>On Telegram, message <code>@BotFather</code>:</p>
+<pre>/newbot
+→ Name: Carroll Street Café
+→ Username: carrollstreetcafe_bot (or any available name)
+→ Copy the BOT TOKEN it gives you</pre>
+<p>Then message <code>@userinfobot</code> to get your personal or group Chat ID.</p>
+<div class="tip">💡 Create a Telegram group with all 4 cashiers + yourself, add the bot to the group, then get the group's Chat ID to allow all of them at once.</div>
+
+<h2><span class="step-num">5</span>OpenAI — Voice transcription (free)</h2>
+<p>Go to <a href="https://platform.openai.com" target="_blank">platform.openai.com</a> → API keys → Create key.</p>
+<p>The Whisper API costs about $0.006/minute of audio. For short voice orders (~10 seconds each), 100 voice orders = ~$0.01. Essentially free.</p>
+
+<h2><span class="step-num">6</span>Railway — Deploy the bot server (free)</h2>
+<p>Go to <a href="https://railway.app" target="_blank">railway.app</a> → New Project → Deploy from GitHub repo.</p>
+<p>Push your <code>bot.js</code> and <code>package.json</code> to a GitHub repo, then connect it to Railway.</p>
+<p>In Railway → your service → <strong>Variables</strong>, add these env vars:</p>
+<div class="file">
+<strong>BOT_TOKEN</strong> = (from BotFather)<br>
+<strong>SUPABASE_URL</strong> = https://xxxxx.supabase.co<br>
+<strong>SUPABASE_KEY</strong> = eyJ…(anon key)<br>
+<strong>OPENAI_API_KEY</strong> = sk-…<br>
+<strong>ALLOWED_CHAT_IDS</strong> = 123456789,987654321 (comma-separated)<br>
+<strong>PORT</strong> = 3000
+</div>
+<p>Railway will give you a public URL like <code>https://your-app.up.railway.app</code></p>
+
+<h2><span class="step-num">7</span>Connect bot to Telegram webhook</h2>
+<p>In your browser, visit this URL (replace values):</p>
+<pre>https://api.telegram.org/bot&lt;YOUR_BOT_TOKEN&gt;/setWebhook?url=https://&lt;YOUR_RAILWAY_URL&gt;/webhook</pre>
+<p>You should see: <code>{"ok":true,"result":true}</code></p>
+
+<h2><span class="step-num">8</span>Using the Telegram bot</h2>
+<p>Any cashier in the allowed chat can:</p>
+<pre>sell 2 lattes, 1 avocado toast, 3 sodas   ← type an order
+report                                      ← today's totals
+report week                                 ← this week
+staff Amara                                 ← set your name
+menu                                        ← see all items</pre>
+<p>Or send a <strong>voice note</strong> saying the order — the bot transcribes it and asks for confirmation before saving.</p>
+<div class="tip">💡 Voice note flow: speak → bot shows what it heard → reply "yes" to save. All sales from Telegram appear instantly in the web POS reports marked with 📱 Telegram.</div>
+
+<h2><span class="step-num">9</span>You're live!</h2>
+<p>All 4 cashiers can now:</p>
+<p>✅ Use the web POS on their phones at <code>your-subdomain.com</code><br>
+✅ Log sales via Telegram by typing or voice<br>
+✅ See live reports updating in real time<br>
+✅ Export sales to CSV anytime<br>
+✅ Add/edit menu items from the Manage tab</p>
+<div class="tip">💡 Total ongoing cost: $0/month. Supabase free tier: 500MB storage, 2GB bandwidth. Railway free tier: 500 hours/month. Hostinger: your existing plan.</div>
+</body>
+</html>
