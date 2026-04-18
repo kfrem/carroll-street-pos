@@ -65,7 +65,7 @@ const CATS = [...new Set(MENU.map(i=>i.cat))];
 // ── SESSIONS ──────────────────────────────────────────────────
 const sessions = {};
 function getSession(chatId, userName) {
-  if(!sessions[chatId]) sessions[chatId] = {staff: userName, cart: [], pendingItems: null};
+  if(!sessions[chatId]) sessions[chatId] = {staff: userName, cart: [], discount: null, pendingItems: null};
   return sessions[chatId];
 }
 
@@ -168,7 +168,20 @@ function itemOptionsKeyboard(itemIdx) {
   ];
 }
 
-function cartKeyboard(cart) {
+function discountKeyboard() {
+  return [
+    [{text:'5%',  callback_data:'disc:pct:5'},  {text:'10%', callback_data:'disc:pct:10'},
+     {text:'15%', callback_data:'disc:pct:15'}, {text:'20%', callback_data:'disc:pct:20'}],
+    [{text:'25%', callback_data:'disc:pct:25'}, {text:'30%', callback_data:'disc:pct:30'},
+     {text:'50%', callback_data:'disc:pct:50'}, {text:'Student/Staff', callback_data:'disc:pct:15'}],
+    [{text:'−$1.00', callback_data:'disc:amt:1'},  {text:'−$2.00', callback_data:'disc:amt:2'},
+     {text:'−$5.00', callback_data:'disc:amt:5'},  {text:'−$10.00',callback_data:'disc:amt:10'}],
+    [{text:'⬅️ Back to Cart', callback_data:'v'}],
+    [{text:'❌ Cancel Order', callback_data:'x'}],
+  ];
+}
+
+function cartKeyboard(cart, discount) {
   const rows = [];
   cart.forEach((item, idx) => {
     rows.push([
@@ -178,18 +191,39 @@ function cartKeyboard(cart) {
     ]);
   });
   rows.push([
-    {text:'➕ Add More',    callback_data:'cats'},
-    {text:'✅ Confirm Sale', callback_data:'confirm'},
+    {text:'➕ Add More',      callback_data:'cats'},
+    {text: discount ? '🏷 Edit Discount' : '🏷 Add Discount', callback_data:'disc'},
   ]);
-  rows.push([{text:'❌ Cancel Order', callback_data:'x'}]);
+  if(discount) {
+    rows.push([{text:'✖ Remove Discount', callback_data:'disc:rm'}]);
+  }
+  rows.push([
+    {text:'✅ Confirm Sale', callback_data:'confirm'},
+    {text:'❌ Cancel',       callback_data:'x'},
+  ]);
   return rows;
 }
 
-function cartText(cart, staffName) {
+function calcDiscount(subtotal, discount) {
+  if(!discount) return 0;
+  if(discount.type==='pct') return parseFloat((subtotal * discount.value / 100).toFixed(2));
+  if(discount.type==='amt') return Math.min(discount.value, subtotal);
+  return 0;
+}
+
+function cartText(cart, staffName, discount) {
   if(!cart.length) return '🛒 Cart is empty.';
-  const total = cart.reduce((s,i)=>s+i.price*i.qty, 0);
-  const lines = cart.map(i=>`  • ${i.qty}×  ${i.name}${i.label?' ('+i.label+')':''} — $${(i.price*i.qty).toFixed(2)}`).join('\n');
-  return `🛒 <b>Order — ${staffName}</b>\n\n${lines}\n\n<b>Total: $${total.toFixed(2)}</b>\n\nUse − / + to adjust quantities.`;
+  const subtotal = cart.reduce((s,i)=>s+i.price*i.qty, 0);
+  const discAmt  = calcDiscount(subtotal, discount);
+  const total    = subtotal - discAmt;
+  const lines    = cart.map(i=>`  • ${i.qty}×  ${i.name}${i.label?' ('+i.label+')':''} — $${(i.price*i.qty).toFixed(2)}`).join('\n');
+  let txt = `🛒 <b>Order — ${staffName}</b>\n\n${lines}\n\nSubtotal: $${subtotal.toFixed(2)}`;
+  if(discount) {
+    const label = discount.type==='pct' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`;
+    txt += `\n🏷 Discount (${label}): -$${discAmt.toFixed(2)}`;
+  }
+  txt += `\n<b>Total: $${total.toFixed(2)}</b>\n\nUse − / + to adjust quantities.`;
+  return txt;
 }
 
 // ── CALLBACK HANDLER ──────────────────────────────────────────
@@ -248,7 +282,7 @@ async function handleCallback(cb) {
     const ex    = sess.cart.find(c=>c.key===key);
     if(ex) ex.qty++;
     else sess.cart.push({key, name, price, qty:1, label: label==='half'?'½ price':''});
-    await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff), cartKeyboard(sess.cart));
+    await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff, sess.discount), cartKeyboard(sess.cart, sess.discount));
     return;
   }
 
@@ -256,7 +290,7 @@ async function handleCallback(cb) {
   if(data.startsWith('p:')) {
     const idx = parseInt(data.slice(2));
     if(sess.cart[idx]) sess.cart[idx].qty++;
-    await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff), cartKeyboard(sess.cart));
+    await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff, sess.discount), cartKeyboard(sess.cart, sess.discount));
     return;
   }
 
@@ -270,8 +304,32 @@ async function handleCallback(cb) {
     if(!sess.cart.length) {
       await tgEdit(chatId, msgId, '🛒 Cart is empty.\n\nSelect a category:', categoriesKeyboard());
     } else {
-      await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff), cartKeyboard(sess.cart));
+      await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff, sess.discount), cartKeyboard(sess.cart, sess.discount));
     }
+    return;
+  }
+
+  // Show discount options
+  if(data === 'disc') {
+    const subtotal = sess.cart.reduce((s,i)=>s+i.price*i.qty, 0);
+    await tgEdit(chatId, msgId,
+      `🏷 <b>Apply Discount</b>\n\nSubtotal: $${subtotal.toFixed(2)}\n\nSelect a percentage or fixed amount off:`,
+      discountKeyboard()
+    );
+    return;
+  }
+
+  // Apply / remove discount
+  if(data.startsWith('disc:')) {
+    const parts = data.split(':');
+    if(parts[1]==='rm') {
+      sess.discount = null;
+    } else {
+      const type  = parts[1]; // 'pct' or 'amt'
+      const value = parseFloat(parts[2]);
+      sess.discount = {type, value};
+    }
+    await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff, sess.discount), cartKeyboard(sess.cart, sess.discount));
     return;
   }
 
@@ -280,7 +338,7 @@ async function handleCallback(cb) {
     if(!sess.cart.length) {
       await tgEdit(chatId, msgId, '🛒 Cart is empty.\n\nSelect a category:', categoriesKeyboard());
     } else {
-      await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff), cartKeyboard(sess.cart));
+      await tgEdit(chatId, msgId, cartText(sess.cart, sess.staff, sess.discount), cartKeyboard(sess.cart, sess.discount));
     }
     return;
   }
@@ -289,21 +347,27 @@ async function handleCallback(cb) {
   if(data === 'confirm') {
     if(!sess.cart.length) return;
     try {
-      const total = sess.cart.reduce((s,i)=>s+i.price*i.qty, 0);
+      const subtotal  = sess.cart.reduce((s,i)=>s+i.price*i.qty, 0);
+      const discAmt   = calcDiscount(subtotal, sess.discount);
+      const total     = subtotal - discAmt;
+      const discLabel = sess.discount
+        ? (sess.discount.type==='pct' ? `${sess.discount.value}% off` : `$${sess.discount.value.toFixed(2)} off`)
+        : '';
       const {error} = await sb.from('sales').insert({
         staff: sess.staff,
         items: sess.cart.map(i=>({name:i.name+(i.label?' ('+i.label+')':''), price:i.price, qty:i.qty})),
-        total, note:'', source:'telegram'
+        total, note: discLabel ? `Discount: ${discLabel}` : '', source:'telegram'
       });
       if(error) throw error;
-      const summary = sess.cart.map(i=>`  • ${i.qty}× ${i.name}${i.label?' ('+i.label+')':''} — $${(i.price*i.qty).toFixed(2)}`).join('\n');
-      sess.cart = [];
+      const summary  = sess.cart.map(i=>`  • ${i.qty}× ${i.name}${i.label?' ('+i.label+')':''} — $${(i.price*i.qty).toFixed(2)}`).join('\n');
+      const discLine = discAmt>0 ? `\n🏷 Discount (${discLabel}): -$${discAmt.toFixed(2)}` : '';
+      sess.cart = []; sess.discount = null;
       await tgEdit(chatId, msgId,
-        `✅ <b>Sale saved!</b>\n\n${summary}\n\n<b>Total: $${total.toFixed(2)}</b>\nSold by: ${sess.staff}`,
+        `✅ <b>Sale saved!</b>\n\n${summary}\n\nSubtotal: $${subtotal.toFixed(2)}${discLine}\n<b>Total: $${total.toFixed(2)}</b>\nSold by: ${sess.staff}`,
         [[{text:'🆕 New Order', callback_data:'cats'}]]
       );
     } catch(e) {
-      await tgEdit(chatId, msgId, '❌ Error: '+e.message, cartKeyboard(sess.cart));
+      await tgEdit(chatId, msgId, '❌ Error: '+e.message, cartKeyboard(sess.cart, sess.discount));
     }
     return;
   }
@@ -409,7 +473,7 @@ async function handleMessage(msg) {
 
   // ── sell (no args) → show button menu ──
   if(lower==='sell'||lower==='/sell'||lower==='order'||lower==='/order') {
-    sess.cart = [];
+    sess.cart = []; sess.discount = null;
     await tgSendKeyboard(chatId, '☕ <b>Carroll Street Café</b>\n\nSelect a category:', categoriesKeyboard());
     return;
   }
