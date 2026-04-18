@@ -159,15 +159,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </head>
 <body>
 
-<!-- SETUP SCREEN (shown if no Supabase config) -->
-<div class="setup" id="setup-screen">
-  <div style="font-size:40px;margin-bottom:16px">☕</div>
+<!-- PIN SCREEN -->
+<div class="setup" id="pin-screen" style="display:none">
+  <div style="font-size:48px;margin-bottom:16px">☕</div>
   <h2>Carroll Street Café</h2>
-  <p>Enter your Supabase credentials to connect.<br>Find these in your Supabase project under<br><strong>Settings → API</strong></p>
-  <input class="setup-in" id="sb-url" placeholder="Supabase Project URL (https://xxx.supabase.co)" />
-  <input class="setup-in" id="sb-key" placeholder="Supabase anon/public key" />
-  <button class="setup-btn" onclick="saveConfig()">Connect & Launch POS</button>
-  <p style="margin-top:16px;font-size:11px;color:#bbb">Credentials saved locally on this device only</p>
+  <p>Enter your access PIN<br>to open the POS</p>
+  <input class="setup-in" id="pin-input" placeholder="Enter PIN" type="password" inputmode="numeric" maxlength="10" onkeydown="if(event.key==='Enter')checkPin()" />
+  <button class="setup-btn" onclick="checkPin()">Open POS</button>
+  <p style="margin-top:16px;font-size:12px;color:#e25c4b;min-height:20px" id="pin-error"></p>
+  <p style="margin-top:8px;font-size:11px;color:#bbb">No PIN? Contact your manager.</p>
 </div>
 
 <div class="app" id="app" style="display:none">
@@ -266,18 +266,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div style="padding:0 14px 8px;font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.8px">All items (tap to edit)</div>
       <div id="mg-list"></div>
 
-      <!-- Telegram Setup -->
-      <div class="tg-info" style="margin-top:14px">
-        <h3>🤖 Telegram Bot Setup</h3>
-        <div class="step">Step 1 — Create your bot</div>
-        <p>Message <code>@BotFather</code> on Telegram → /newbot → get your <strong>Bot Token</strong></p>
-        <div class="step">Step 2 — Get your Chat ID</div>
-        <p>Message <code>@userinfobot</code> on Telegram to get your group or personal Chat ID</p>
-        <div class="step">Step 3 — Deploy the bot server</div>
-        <p>Upload <code>bot.js</code> to Railway (free tier). Set env vars:<br>
-        <code>BOT_TOKEN</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_KEY</code>, <code>ALLOWED_CHAT_ID</code></p>
-        <div class="step">Step 4 — Set webhook</div>
-        <p>Visit: <code>https://api.telegram.org/bot&lt;TOKEN&gt;/setWebhook?url=https://&lt;your-railway-url&gt;/webhook</code></p>
+      <!-- PIN Management -->
+      <div class="add-form" style="margin-top:14px">
+        <h3>🔐 Change Access PIN</h3>
+        <p style="font-size:12px;color:#999;margin-bottom:12px">Staff will need the new PIN next time they open the app on a fresh session.</p>
+        <div class="f-row">
+          <input class="f-in" id="new-pin" placeholder="New PIN (min 4 digits)" type="password" inputmode="numeric" maxlength="10" />
+          <button class="f-btn" onclick="changePin()">Save</button>
+        </div>
       </div>
 
       <!-- Staff name editor -->
@@ -314,6 +310,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────
+const SUPABASE_URL = 'https://fxkudktemkkevmjibyjp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_K6zyRZC97277F3-14KIXNw_P0zpX92P';
+let correctPin = '1234'; // default, overridden from Supabase settings table
+
 const CATS = ['Hot Drinks','Iced Drinks','Herbal Teas','Fresh Juices','Smoothies','Canned Soda','Breakfast & Light Bites','Wraps & Sandwiches','Bowls'];
 
 const DEFAULT_MENU = [
@@ -370,31 +370,44 @@ let nextId = Math.max(...menu.map(i=>i.id)) + 1;
 let todaySales = [];
 let realtimeSub = null;
 
-// ── CONFIG ──────────────────────────────────────────────────
-function saveConfig(){
-  const url = document.getElementById('sb-url').value.trim();
-  const key = document.getElementById('sb-key').value.trim();
-  if(!url || !key){ alert('Please enter both URL and key.'); return; }
-  localStorage.setItem('csc_sb_url', url);
-  localStorage.setItem('csc_sb_key', key);
-  initApp();
+// ── PIN AUTH ──────────────────────────────────────────────────
+async function initApp(){
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  try {
+    const {data} = await sb.from('settings').select('value').eq('key','pos_pin').single();
+    if(data) correctPin = data.value;
+  } catch(e) { /* use default 1234 */ }
+  document.getElementById('pin-screen').style.display='flex';
 }
 
-function initApp(){
-  const url = localStorage.getItem('csc_sb_url');
-  const key = localStorage.getItem('csc_sb_key');
-  if(!url || !key){ document.getElementById('setup-screen').style.display='flex'; return; }
-  document.getElementById('setup-screen').style.display='none';
-  document.getElementById('app').style.display='flex';
-  sb = supabase.createClient(url, key);
-  document.getElementById('conn-dot').className='conn-dot ok';
-  loadTodaySales();
-  subscribeRealtime();
-  buildMenu();
-  buildManage();
-  buildStaffBar();
-  updateClock();
-  setInterval(updateClock, 15000);
+function checkPin(){
+  const entered = document.getElementById('pin-input').value.trim();
+  if(entered === correctPin){
+    document.getElementById('pin-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('conn-dot').className='conn-dot ok';
+    loadTodaySales();
+    subscribeRealtime();
+    buildMenu();
+    buildManage();
+    buildStaffBar();
+    updateClock();
+    setInterval(updateClock, 15000);
+  } else {
+    document.getElementById('pin-error').textContent='❌ Wrong PIN. Contact your manager.';
+    document.getElementById('pin-input').value='';
+    setTimeout(()=>document.getElementById('pin-error').textContent='', 3000);
+  }
+}
+
+async function changePin(){
+  const newPin = document.getElementById('new-pin').value.trim();
+  if(!newPin || newPin.length < 4){ showToast('PIN must be at least 4 digits'); return; }
+  const {error} = await sb.from('settings').upsert({key:'pos_pin', value:newPin});
+  if(error){ showToast('Error: '+error.message); return; }
+  correctPin = newPin;
+  document.getElementById('new-pin').value='';
+  showToast('✓ PIN changed. Share the new PIN with your staff.');
 }
 
 // ── SUPABASE ──────────────────────────────────────────────────
