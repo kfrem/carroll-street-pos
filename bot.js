@@ -382,49 +382,234 @@ async function handleCallback(cb) {
   }
 }
 
-// ── REPORT ───────────────────────────────────────────────────
-async function getReport(period='today') {
-  let from;
+// ── REPORT ENGINE ─────────────────────────────────────────────
+function bar(value, max, len=10) {
+  const filled = Math.round((value/max)*len);
+  return '█'.repeat(filled)+'░'.repeat(len-filled);
+}
+
+function pct(part, total) {
+  return total ? ((part/total)*100).toFixed(1)+'%' : '0%';
+}
+
+function formatHour(h) {
+  if(h===0)  return '12 AM';
+  if(h<12)   return h+' AM';
+  if(h===12) return '12 PM';
+  return (h-12)+' PM';
+}
+
+// Category lookup from item name
+function getCategory(itemName) {
+  const found = MENU.find(m=>itemName.toLowerCase().includes(m.name.toLowerCase()));
+  return found ? found.cat : 'Other';
+}
+
+async function sendReport(chatId, period='today') {
   const now = new Date();
+  let from, label;
   if(period==='today') {
-    from = now.toISOString().slice(0,10)+'T00:00:00';
+    from  = now.toISOString().slice(0,10)+'T00:00:00';
+    label = 'Today · '+now.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
   } else if(period==='week') {
-    const d = new Date(now); d.setDate(d.getDate()-7);
-    from = d.toISOString();
+    const d=new Date(now); d.setDate(d.getDate()-7);
+    from=d.toISOString();
+    label='Last 7 Days';
   } else {
-    from = now.toISOString().slice(0,7)+'-01T00:00:00';
+    from=now.toISOString().slice(0,7)+'-01T00:00:00';
+    label=now.toLocaleDateString('en-US',{month:'long',year:'numeric'});
   }
-  const {data,error} = await sb.from('sales').select('*').gte('created_at',from).order('created_at',{ascending:false});
-  if(error||!data||!data.length) return `No sales found for ${period}.`;
+
+  const {data,error} = await sb.from('sales').select('*').gte('created_at',from).order('created_at',{ascending:true});
+  if(error||!data||!data.length) {
+    await tgSend(chatId, `📊 No sales found for ${period} yet.`);
+    return;
+  }
 
   const sales   = data.filter(x=>x.source!=='refund');
   const refunds = data.filter(x=>x.source==='refund');
-  const gross   = sales.reduce((s,x)=>s+Number(x.total),0);
-  const refAmt  = Math.abs(refunds.reduce((s,x)=>s+Number(x.total),0));
-  const net     = gross - refAmt;
-  const items   = sales.reduce((s,x)=>s+(x.items||[]).reduce((a,i)=>a+i.qty,0),0);
+  if(!sales.length) { await tgSend(chatId, '📊 No completed sales yet.'); return; }
 
+  // ── Core metrics ──
+  const gross    = sales.reduce((s,x)=>s+Number(x.total),0);
+  const refAmt   = Math.abs(refunds.reduce((s,x)=>s+Number(x.total),0));
+  const net      = gross-refAmt;
+  const avgTx    = gross/sales.length;
+  const allItems = sales.flatMap(x=>x.items||[]);
+  const totalQty = allItems.reduce((s,i)=>s+i.qty,0);
+
+  // ── Discount intelligence ──
+  const discountedSales = sales.filter(x=>x.note&&x.note.startsWith('Discount:'));
+  const discountTotal   = discountedSales.reduce((s,x)=>{
+    const orig = (x.items||[]).reduce((a,i)=>a+i.price*i.qty,0);
+    return s+(orig-Number(x.total));
+  },0);
+
+  // ── Hourly analysis ──
+  const hourly = {};
+  sales.forEach(x=>{
+    const h = new Date(x.created_at).getHours();
+    if(!hourly[h]) hourly[h]={rev:0,cnt:0};
+    hourly[h].rev+=Number(x.total); hourly[h].cnt++;
+  });
+  const hourKeys    = Object.keys(hourly).map(Number).sort((a,b)=>a-b);
+  const maxHourRev  = Math.max(...Object.values(hourly).map(h=>h.rev));
+  const peakHour    = hourKeys.reduce((a,b)=>hourly[a].rev>hourly[b].rev?a:b);
+  const quietHour   = hourKeys.reduce((a,b)=>hourly[a].rev<hourly[b].rev?a:b);
+  const avgHourRev  = gross/hourKeys.length;
+  const rushHours   = hourKeys.filter(h=>hourly[h].rev>=avgHourRev*1.2);
+  const slowHours   = hourKeys.filter(h=>hourly[h].rev<=avgHourRev*0.5);
+  const morningRev  = hourKeys.filter(h=>h<12).reduce((s,h)=>s+hourly[h].rev,0);
+  const afternoonRev= hourKeys.filter(h=>h>=12&&h<17).reduce((s,h)=>s+hourly[h].rev,0);
+  const eveningRev  = hourKeys.filter(h=>h>=17).reduce((s,h)=>s+hourly[h].rev,0);
+
+  // ── Item analysis ──
   const imap={};
-  sales.forEach(sale=>(sale.items||[]).forEach(i=>{
-    if(!imap[i.name]) imap[i.name]={qty:0,rev:0};
-    imap[i.name].qty+=i.qty; imap[i.name].rev+=i.price*i.qty;
-  }));
-  const top = Object.entries(imap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,5);
+  allItems.forEach(i=>{
+    const key=i.name.replace(/\s*\(½.*?\)/,'').trim();
+    if(!imap[key]) imap[key]={qty:0,rev:0,cat:getCategory(key)};
+    imap[key].qty+=i.qty; imap[key].rev+=i.price*i.qty;
+  });
+  const iEntries  = Object.entries(imap).filter(([,v])=>!v.rev<0);
+  const byRev     = [...iEntries].sort((a,b)=>b[1].rev-a[1].rev);
+  const byQty     = [...iEntries].sort((a,b)=>b[1].qty-a[1].qty);
+  const top5      = byRev.slice(0,5);
+  const slow3     = byRev.slice(-3).reverse();
+  const topItem   = byRev[0];
+  const maxItemRev= topItem ? topItem[1].rev : 1;
 
+  // ── Category analysis ──
+  const catmap={};
+  allItems.forEach(i=>{
+    const cat=getCategory(i.name);
+    if(!catmap[cat]) catmap[cat]={rev:0,qty:0};
+    catmap[cat].rev+=i.price*i.qty; catmap[cat].qty+=i.qty;
+  });
+  const catEntries=Object.entries(catmap).sort((a,b)=>b[1].rev-a[1].rev);
+
+  // ── Staff analysis ──
   const smap={};
-  sales.forEach(x=>{ if(!smap[x.staff]) smap[x.staff]={t:0,r:0}; smap[x.staff].t++; smap[x.staff].r+=Number(x.total); });
+  sales.forEach(x=>{
+    if(!smap[x.staff]) smap[x.staff]={cnt:0,rev:0};
+    smap[x.staff].cnt++; smap[x.staff].rev+=Number(x.total);
+  });
+  const staffEntries=Object.entries(smap).sort((a,b)=>b[1].rev-a[1].rev);
+  const topStaff=staffEntries[0];
 
-  let msg = `<b>📊 ${period.charAt(0).toUpperCase()+period.slice(1)} — Carroll Street Café</b>\n\n`;
-  msg += `💰 Gross: <b>$${gross.toFixed(2)}</b>\n`;
-  if(refAmt>0) msg += `↩ Refunds: <b>-$${refAmt.toFixed(2)}</b>\n`;
-  msg += `💵 Net: <b>$${net.toFixed(2)}</b>\n`;
-  msg += `🧾 Sales: <b>${sales.length}</b>  |  Items: <b>${items}</b>\n`;
-  msg += `📈 Avg: <b>$${sales.length?(gross/sales.length).toFixed(2):'0.00'}</b>\n\n`;
-  msg += `<b>🏆 Top items:</b>\n`;
-  msg += top.map(([n,v])=>`  • ${v.qty}× ${n} — $${v.rev.toFixed(2)}`).join('\n');
-  msg += `\n\n<b>👩‍💼 By staff:</b>\n`;
-  msg += Object.entries(smap).map(([n,v])=>`  • ${n}: ${v.t} sales · $${v.r.toFixed(2)}`).join('\n');
-  return msg;
+  // ── MESSAGE 1: Summary + Time ──────────────────────────────
+  let m1=`📊 <b>Carroll Street Café</b>\n<b>${label}</b>\n${'─'.repeat(28)}\n\n`;
+  m1+=`💰 Gross Revenue:  <b>$${gross.toFixed(2)}</b>\n`;
+  if(refAmt>0) m1+=`↩ Refunds:         <b>-$${refAmt.toFixed(2)}</b>\n`;
+  m1+=`💵 Net Revenue:    <b>$${net.toFixed(2)}</b>\n`;
+  if(discountTotal>0) m1+=`🏷 Discounts Given: <b>$${discountTotal.toFixed(2)}</b> (${pct(discountTotal,gross)} of gross)\n`;
+  m1+=`\n🧾 Transactions:   <b>${sales.length}</b>\n`;
+  m1+=`🛍 Items Sold:      <b>${totalQty}</b>\n`;
+  m1+=`💳 Avg Transaction: <b>$${avgTx.toFixed(2)}</b>\n`;
+  m1+=`🏆 Largest Sale:    <b>$${Math.max(...sales.map(x=>Number(x.total))).toFixed(2)}</b>\n`;
+  m1+=`\n⏰ <b>Sales by Time of Day</b>\n`;
+  if(morningRev>0)   m1+=`  🌅 Morning (before noon): $${morningRev.toFixed(2)} — ${pct(morningRev,gross)}\n`;
+  if(afternoonRev>0) m1+=`  ☀️ Afternoon (12–5 PM):   $${afternoonRev.toFixed(2)} — ${pct(afternoonRev,gross)}\n`;
+  if(eveningRev>0)   m1+=`  🌙 Evening (after 5 PM):  $${eveningRev.toFixed(2)} — ${pct(eveningRev,gross)}\n`;
+  m1+=`\n🔥 Peak Hour:    <b>${formatHour(peakHour)}</b> — $${hourly[peakHour].rev.toFixed(2)} (${hourly[peakHour].cnt} orders)\n`;
+  m1+=`😴 Quietest Hour: <b>${formatHour(quietHour)}</b> — $${hourly[quietHour].rev.toFixed(2)} (${hourly[quietHour].cnt} orders)\n`;
+  if(rushHours.length) m1+=`\n📈 Rush periods: ${rushHours.map(formatHour).join(', ')}\n`;
+  if(slowHours.length) m1+=`📉 Slow periods: ${slowHours.map(formatHour).join(', ')}\n`;
+
+  // Hourly bar chart (only for today)
+  if(period==='today'&&hourKeys.length>1) {
+    m1+=`\n<b>Hourly Revenue:</b>\n<pre>`;
+    hourKeys.forEach(h=>{
+      const label=formatHour(h).padStart(5);
+      const b=bar(hourly[h].rev,maxHourRev,8);
+      m1+=`${label} ${b} $${hourly[h].rev.toFixed(0)}\n`;
+    });
+    m1+=`</pre>`;
+  }
+
+  await tgSend(chatId, m1);
+
+  // ── MESSAGE 2: Item & Category Intelligence ─────────────────
+  let m2=`🏆 <b>Menu Performance</b>\n${'─'.repeat(28)}\n\n`;
+  m2+=`<b>Top 5 by Revenue:</b>\n<pre>`;
+  top5.forEach(([name,v],i)=>{
+    const b=bar(v.rev,maxItemRev,7);
+    m2+=`${(i+1)}. ${name.slice(0,18).padEnd(18)} ${b}\n   $${v.rev.toFixed(2)} · ${v.qty}× · ${pct(v.rev,gross)}\n`;
+  });
+  m2+=`</pre>`;
+
+  m2+=`\n<b>Top 5 by Volume (units sold):</b>\n`;
+  byQty.slice(0,5).forEach(([name,v],i)=>{
+    m2+=`  ${i+1}. ${name} — ${v.qty} sold\n`;
+  });
+
+  if(slow3.length) {
+    m2+=`\n<b>📉 Slow Movers Today:</b>\n`;
+    slow3.forEach(([name,v])=>{ m2+=`  • ${name} — only ${v.qty} sold ($${v.rev.toFixed(2)})\n`; });
+  }
+
+  // Items not ordered (from known menu)
+  const orderedNames = new Set(Object.keys(imap).map(n=>n.toLowerCase()));
+  const notOrdered   = MENU.filter(m=>!orderedNames.has(m.name.toLowerCase())).slice(0,5);
+  if(notOrdered.length) {
+    m2+=`\n<b>😶 Not Ordered Today:</b>\n`;
+    notOrdered.forEach(m=>{ m2+=`  • ${m.name}\n`; });
+  }
+
+  m2+=`\n<b>📂 Revenue by Category:</b>\n<pre>`;
+  catEntries.forEach(([cat,v])=>{
+    const b=bar(v.rev,catEntries[0][1].rev,8);
+    m2+=`${cat.slice(0,12).padEnd(12)} ${b} ${pct(v.rev,gross)}\n`;
+  });
+  m2+=`</pre>`;
+
+  await tgSend(chatId, m2);
+
+  // ── MESSAGE 3: Staff + Smart Insights ──────────────────────
+  let m3=`👩‍💼 <b>Staff Performance</b>\n${'─'.repeat(28)}\n\n`;
+  staffEntries.forEach(([name,v])=>{
+    const avg=(v.rev/v.cnt).toFixed(2);
+    m3+=`<b>${name}</b>\n  ${v.cnt} sales · $${v.rev.toFixed(2)} revenue · avg $${avg}\n`;
+  });
+  if(staffEntries.length>1) {
+    const topAvgStaff=staffEntries.reduce((a,b)=>(a[1].rev/a[1].cnt)>(b[1].rev/b[1].cnt)?a:b);
+    m3+=`\n⭐ Highest avg sale: <b>${topAvgStaff[0]}</b> at $${(topAvgStaff[1].rev/topAvgStaff[1].cnt).toFixed(2)}\n`;
+  }
+  if(refunds.length) {
+    m3+=`\n↩ <b>Refunds Today:</b> ${refunds.length} · -$${refAmt.toFixed(2)}\n`;
+  }
+
+  // ── Smart Insights ──
+  m3+=`\n💡 <b>Smart Insights</b>\n${'─'.repeat(28)}\n`;
+  const insights=[];
+
+  if(topItem) insights.push(`"${topItem[0]}" is your #1 earner at $${topItem[1].rev.toFixed(2)} (${pct(topItem[1].rev,gross)} of revenue) — keep it stocked.`);
+
+  const topCat=catEntries[0];
+  if(topCat) insights.push(`<b>${topCat[0]}</b> is your strongest category — ${pct(topCat[1].rev,gross)} of today's revenue.`);
+
+  if(morningRev>afternoonRev&&morningRev>eveningRev) insights.push(`You're a morning-heavy business. ${pct(morningRev,gross)} of revenue before noon — ensure full staff for opening.`);
+  else if(afternoonRev>morningRev) insights.push(`Afternoon is your strongest window — ${pct(afternoonRev,gross)} of daily revenue hits 12–5 PM.`);
+
+  if(slowHours.length>=2) insights.push(`${slowHours.map(formatHour).join(' & ')} are consistently slow. Consider prep tasks, cleaning or staff breaks then.`);
+
+  if(discountTotal>gross*0.1) insights.push(`⚠️ Discounts are eating ${pct(discountTotal,gross)} of gross revenue. Review discount policy.`);
+  else if(discountTotal>0) insights.push(`Discounts were well-controlled at ${pct(discountTotal,gross)} of gross.`);
+
+  if(avgTx>12) insights.push(`Strong average transaction of $${avgTx.toFixed(2)} — customers are buying multiple items.`);
+  else if(avgTx<7) insights.push(`Low avg transaction ($${avgTx.toFixed(2)}). Consider upsell prompts — "Add a muffin?" etc.`);
+
+  if(notOrdered.length>5) insights.push(`${notOrdered.length} menu items went unordered today. Review pricing or remove slow items.`);
+
+  if(sales.length<10) insights.push(`Only ${sales.length} transactions today — is this a short day or slow period?`);
+
+  const highestSale=Math.max(...sales.map(x=>Number(x.total)));
+  if(highestSale>20) insights.push(`Largest single order was $${highestSale.toFixed(2)} — group orders happening.`);
+
+  insights.forEach((ins,i)=>{ m3+=`\n${i+1}. ${ins}`; });
+
+  m3+=`\n\n─────────────────────────\nType <code>report week</code> or <code>report month</code> for broader trends.`;
+
+  await tgSend(chatId, m3);
 }
 
 // ── MESSAGE HANDLER ───────────────────────────────────────────
@@ -488,7 +673,7 @@ async function handleMessage(msg) {
   // ── report ──
   if(lower.startsWith('report')||lower==='/report') {
     const period = lower.split(' ')[1] || 'today';
-    await tgSend(chatId, await getReport(period));
+    await sendReport(chatId, period);
     return;
   }
 
