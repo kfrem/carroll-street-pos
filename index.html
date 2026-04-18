@@ -9,19 +9,19 @@
 /* ── RESET & BASE ── */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f3ee;color:#1a1a18;font-size:15px;display:flex;flex-direction:column}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0ede6;color:#1a1a18;font-size:15px;display:flex;flex-direction:column}
 
 /* ── LAYOUT ── */
 .app{display:flex;flex-direction:column;height:100vh;max-width:520px;margin:0 auto;width:100%;position:relative;background:#f5f3ee}
 
 /* ── HEADER ── */
-.header{background:#2c2b27;color:#fff;padding:10px 14px 8px;flex-shrink:0}
+.header{background:linear-gradient(135deg,#1a1a18 0%,#3a3632 100%);color:#fff;padding:12px 16px 10px;flex-shrink:0;box-shadow:0 2px 12px rgba(0,0,0,0.2)}
 .header-top{display:flex;align-items:center;justify-content:space-between}
-.header h1{font-size:15px;font-weight:600;letter-spacing:0.3px}
-.header .sub{font-size:10px;opacity:0.5;margin-top:1px}
+.header h1{font-size:16px;font-weight:700;letter-spacing:0.3px}
+.header .sub{font-size:10px;opacity:0.45;margin-top:2px;letter-spacing:0.3px}
 .clock{font-size:12px;opacity:0.6;font-variant-numeric:tabular-nums}
-.conn-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#555;margin-left:6px;vertical-align:middle}
-.conn-dot.ok{background:#4caf87}
+.conn-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px rgba(255,255,255,0.15)}
+.conn-dot.ok{background:#4caf87;box-shadow:0 0 0 3px rgba(76,175,135,0.25)}
 .conn-dot.err{background:#e25c4b}
 
 /* ── STAFF BAR ── */
@@ -43,14 +43,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .view.on{display:block}
 
 /* ── MENU ── */
-.cat-hdr{padding:9px 14px 5px;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.9px;background:#edeae3;position:sticky;top:0;z-index:10}
-.m-item{display:flex;align-items:center;padding:11px 14px;background:#fff;border-bottom:1px solid #f0ede6;gap:10px;cursor:pointer;user-select:none}
-.m-item:active{background:#f8f6f1}
-.m-info{flex:1;min-width:0}
-.m-name{font-size:14px;font-weight:500;line-height:1.3}
-.m-desc{font-size:11px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.m-price{font-size:13px;color:#666;min-width:70px;text-align:right;white-space:nowrap}
-.plus-btn{width:32px;height:32px;border-radius:50%;background:#2c2b27;color:#fff;border:none;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding-bottom:1px}
+.cat-hdr{padding:14px 14px 8px;font-size:11px;font-weight:800;color:#5a5650;text-transform:uppercase;letter-spacing:1.2px;background:#f0ede6;position:sticky;top:0;z-index:10}
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 10px 2px}
+.m-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.07);cursor:pointer;transition:transform .15s,box-shadow .15s}
+.m-card:active{transform:scale(0.97);box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.m-card-img{width:100%;height:115px;object-fit:cover;background:#e8e5de;display:block}
+.m-card-body{padding:9px 10px 11px}
+.m-card-name{font-size:12.5px;font-weight:700;line-height:1.35;color:#1a1a18}
+.m-card-desc{font-size:10px;color:#b0aa9f;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-card-price{font-size:12px;color:#7a7570;margin-top:4px;font-weight:600}
+.m-card-add{width:100%;margin-top:9px;padding:8px;background:#2c2b27;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.2px;transition:background .15s}
+.m-card-add:active{background:#4a4945}
 
 /* ── SIZE MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:none;align-items:flex-end;justify-content:center}
@@ -316,6 +319,52 @@ let correctPin = '1234'; // default, overridden from Supabase settings table
 
 const CATS = ['Hot Drinks','Iced Drinks','Herbal Teas','Fresh Juices','Smoothies','Canned Soda','Breakfast & Light Bites','Wraps & Sandwiches','Bowls'];
 
+// ── FOOD PHOTOS (Unsplash) ──────────────────────────────────
+const U = 'https://images.unsplash.com/photo-';
+const PHOTOS = {
+  1:  U+'1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&auto=format', // Coffee
+  2:  U+'1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&auto=format', // Americano
+  3:  U+'1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&auto=format', // Latte
+  4:  U+'1534040385115-33dcb3acba5b?w=400&h=300&fit=crop&auto=format', // Cappuccino
+  5:  U+'1515823064-d6e0c04616a7?w=400&h=300&fit=crop&auto=format',    // Matcha Latte
+  6:  U+'1542990253-0d0f5be5f0ed?w=400&h=300&fit=crop&auto=format',    // Hot Chocolate
+  7:  U+'1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&auto=format', // Oat Milk
+  8:  U+'1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&auto=format', // Extra Shot
+  9:  U+'1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&auto=format', // Syrup
+  10: U+'1461023058943-07fcbe16d735?w=400&h=300&fit=crop&auto=format', // Iced Coffee
+  11: U+'1553361371-9b22f78e8b1d?w=400&h=300&fit=crop&auto=format',    // Iced Latte
+  12: U+'1515823064-d6e0c04616a7?w=400&h=300&fit=crop&auto=format',    // Iced Matcha
+  13: U+'1563805042-7684c019e1cb?w=400&h=300&fit=crop&auto=format',    // Ginger Tea
+  14: U+'1597318181409-cf64d0b5d8a2?w=400&h=300&fit=crop&auto=format', // Chamomile
+  15: U+'1556679343-c7306c1976bc?w=400&h=300&fit=crop&auto=format',    // Peppermint
+  16: U+'1597318181409-cf64d0b5d8a2?w=400&h=300&fit=crop&auto=format', // Hibiscus
+  17: U+'1622483767028-3f66f32aef97?w=400&h=300&fit=crop&auto=format', // ACB Juice
+  18: U+'1610970878070-7ac8a6a93bc8?w=400&h=300&fit=crop&auto=format', // APL Juice
+  19: U+'1571091718767-18b5b1457add?w=400&h=300&fit=crop&auto=format', // Berry Smoothie
+  20: U+'1546173159-315724a31696?w=400&h=300&fit=crop&auto=format',    // Pineapple Mango
+  21: U+'1572490122747-3e9d3bd98ba1?w=400&h=300&fit=crop&auto=format', // Choc Banana
+  22: U+'1571091718767-18b5b1457add?w=400&h=300&fit=crop&auto=format', // Protein
+  23: U+'1622543925917-763c34d1a86e?w=400&h=300&fit=crop&auto=format', // Canned Soda
+  24: U+'1541519227354-08fa5d50c820?w=400&h=300&fit=crop&auto=format', // Avocado Toast
+  25: U+'1488477181946-6428a0291777?w=400&h=300&fit=crop&auto=format', // Parfait
+  26: U+'1558961363-fa8fdf82db35?w=400&h=300&fit=crop&auto=format',    // Blueberry Muffin
+  27: U+'1567337710282-87b6b52fe58e?w=400&h=300&fit=crop&auto=format', // Corn Muffin
+  28: U+'1612240498936-65f5101365d2?w=400&h=300&fit=crop&auto=format', // Plain Bagel
+  29: U+'1585518419759-7fe2e0fbf8a6?w=400&h=300&fit=crop&auto=format', // Cream Cheese Bagel
+  30: U+'1626700051175-6818013e1d4f?w=400&h=300&fit=crop&auto=format', // Vegan Tuna Wrap
+  31: U+'1548940392-c2ebe84f0a52?w=400&h=300&fit=crop&auto=format',    // Avocado add-on
+  32: U+'1626700051175-6818013e1d4f?w=400&h=300&fit=crop&auto=format', // Veggie Wrap
+  33: U+'1549590143-d5855148a9d5?w=400&h=300&fit=crop&auto=format',    // Falafel Wrap
+  34: U+'1550317138-10000687a72b?w=400&h=300&fit=crop&auto=format',    // Chicken Sandwich
+  35: U+'1584208124888-4cb4bde0cf6e?w=400&h=300&fit=crop&auto=format', // Burrito
+  36: U+'1598103442097-8b74394b95c3?w=400&h=300&fit=crop&auto=format', // Add Chicken
+  37: U+'1599490659213-e2b9527bd087?w=400&h=300&fit=crop&auto=format', // Guacamole
+  38: U+'1512058564366-18510be2db19?w=400&h=300&fit=crop&auto=format', // Rice Bowl
+  39: U+'1512621776951-a57141f2eefd?w=400&h=300&fit=crop&auto=format', // Salad Bowl
+  40: U+'1512058564366-18510be2db19?w=400&h=300&fit=crop&auto=format', // Bowl Topping
+  41: U+'1598103442097-8b74394b95c3?w=400&h=300&fit=crop&auto=format', // Chicken Bowl
+};
+
 const DEFAULT_MENU = [
   {id:1,cat:'Hot Drinks',name:'Coffee (Regular)',price:2.75,price2:3.50,desc:'S/L'},
   {id:2,cat:'Hot Drinks',name:'Americano',price:3.25,price2:3.95,desc:'S/L'},
@@ -452,6 +501,7 @@ async function saveSaleToSupabase(sale){
 }
 
 // ── MENU BUILD ──────────────────────────────────────────────────
+const FALLBACK_IMG = U+'1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&auto=format';
 function buildMenu(){
   const el = document.getElementById('v-menu');
   el.innerHTML = '';
@@ -464,13 +514,24 @@ function buildMenu(){
     if(!byCat[cat]||!byCat[cat].length) return;
     const ch = document.createElement('div');
     ch.className='cat-hdr'; ch.textContent=cat; el.appendChild(ch);
+    const grid = document.createElement('div');
+    grid.className='menu-grid';
     byCat[cat].forEach(item=>{
       const priceStr = item.price2 ? '$'+item.price.toFixed(2)+' / $'+item.price2.toFixed(2) : '$'+item.price.toFixed(2);
-      const row = document.createElement('div');
-      row.className='m-item';
-      row.innerHTML=`<div class="m-info"><div class="m-name">${item.name}</div>${item.desc?`<div class="m-desc">${item.desc}</div>`:''}</div><div class="m-price">${priceStr}</div><button class="plus-btn" onclick="addItem(${item.id})">+</button>`;
-      el.appendChild(row);
+      const imgUrl = PHOTOS[item.id] || FALLBACK_IMG;
+      const card = document.createElement('div');
+      card.className='m-card';
+      card.innerHTML=`
+        <img class="m-card-img" src="${imgUrl}" alt="${item.name}" loading="lazy" onerror="this.src='${FALLBACK_IMG}'">
+        <div class="m-card-body">
+          <div class="m-card-name">${item.name}</div>
+          ${item.desc?`<div class="m-card-desc">${item.desc}</div>`:''}
+          <div class="m-card-price">${priceStr}</div>
+          <button class="m-card-add" onclick="addItem(${item.id})">+ Add</button>
+        </div>`;
+      grid.appendChild(card);
     });
+    el.appendChild(grid);
   });
 }
 
