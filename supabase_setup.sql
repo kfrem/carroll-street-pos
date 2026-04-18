@@ -34,4 +34,18 @@ CREATE POLICY "Allow all on menu_items" ON menu_items FOR ALL USING (true) WITH 
 -- 4. Enable Realtime for live updates across all cashier phones
 ALTER PUBLICATION supabase_realtime ADD TABLE sales;
 
+-- 5. Settings table (used for PIN management from the web POS)
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on settings" ON settings FOR ALL USING (true) WITH CHECK (true);
+
+-- Insert default PIN (change this before going live!)
+INSERT INTO settings (key, value) VALUES ('pos_pin', '1234')
+ON CONFLICT (key) DO NOTHING;
+
 -- Done! Note your Project URL and anon key from Settings > API

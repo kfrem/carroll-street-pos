@@ -4,15 +4,59 @@
  *
  * ENV VARS:
  *   BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY, ALLOWED_CHAT_IDS, GROQ_API_KEY, PORT
+ *   STRIPE_SECRET_KEY  — Stripe secret key for Terminal payments
  */
 
 const express = require('express');
 const fetch = require('node-fetch');
 const FormData = require('form-data');
 const { createClient } = require('@supabase/supabase-js');
+const Stripe = require('stripe');
 
 const app = express();
 app.use(express.json());
+
+// Allow the web POS (index.html) to call these endpoints from any origin
+app.use('/stripe', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
+const stripeClient = process.env.STRIPE_SECRET_KEY
+  ? Stripe(process.env.STRIPE_SECRET_KEY)
+  : null;
+
+// ── STRIPE TERMINAL ENDPOINTS ─────────────────────────────────
+// Called by the web POS to get a connection token for the Terminal SDK
+app.post('/stripe/connection-token', async (req, res) => {
+  if (!stripeClient) return res.status(500).json({ error: 'STRIPE_SECRET_KEY not set on server' });
+  try {
+    const token = await stripeClient.terminal.connectionTokens.create();
+    res.json({ secret: token.secret });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Called by the web POS to create a PaymentIntent before collecting card
+app.post('/stripe/create-payment-intent', async (req, res) => {
+  if (!stripeClient) return res.status(500).json({ error: 'STRIPE_SECRET_KEY not set on server' });
+  try {
+    const { amount } = req.body; // amount in cents
+    const intent = await stripeClient.paymentIntents.create({
+      amount: Math.round(amount),
+      currency: 'usd',
+      payment_method_types: ['card_present'],
+      capture_method: 'automatic',
+    });
+    res.json({ client_secret: intent.client_secret, id: intent.id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 const BOT_TOKEN   = process.env.BOT_TOKEN;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -25,39 +69,56 @@ const TG  = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 // ── MENU ─────────────────────────────────────────────────────
 const MENU = [
-  {name:'Coffee',            price:2.75, cat:'☕ Hot Drinks'},
-  {name:'Americano',         price:3.25, cat:'☕ Hot Drinks'},
-  {name:'Latte (Small)',     price:4.50, cat:'☕ Hot Drinks'},
-  {name:'Latte (Large)',     price:5.50, cat:'☕ Hot Drinks'},
-  {name:'Cappuccino',        price:4.50, cat:'☕ Hot Drinks'},
-  {name:'Matcha Latte',      price:5.25, cat:'☕ Hot Drinks'},
-  {name:'Hot Chocolate',     price:3.75, cat:'☕ Hot Drinks'},
-  {name:'Iced Coffee',       price:3.50, cat:'🧊 Iced Drinks'},
-  {name:'Iced Latte',        price:4.75, cat:'🧊 Iced Drinks'},
-  {name:'Iced Matcha',       price:5.50, cat:'🧊 Iced Drinks'},
-  {name:'Ginger Tea',        price:3.25, cat:'🍵 Herbal Teas'},
-  {name:'Chamomile Tea',     price:3.25, cat:'🍵 Herbal Teas'},
-  {name:'Peppermint Tea',    price:3.25, cat:'🍵 Herbal Teas'},
-  {name:'Hibiscus Tea',      price:3.25, cat:'🍵 Herbal Teas'},
-  {name:'ACB Juice',         price:9.00, cat:'🥤 Juices'},
-  {name:'APL Green Juice',   price:9.00, cat:'🥤 Juices'},
-  {name:'Berry Smoothie',    price:7.50, cat:'🥤 Smoothies'},
-  {name:'Pineapple Mango',   price:7.50, cat:'🥤 Smoothies'},
-  {name:'Choc Banana',       price:7.50, cat:'🥤 Smoothies'},
-  {name:'Canned Soda',       price:2.50, cat:'🥤 Drinks'},
-  {name:'Avocado Toast',     price:7.50, cat:'🍽 Food'},
-  {name:'Parfait',           price:6.50, cat:'🍽 Food'},
-  {name:'Blueberry Muffin',  price:3.00, cat:'🍽 Food'},
-  {name:'Corn Muffin',       price:3.00, cat:'🍽 Food'},
-  {name:'Plain Bagel',       price:1.50, cat:'🍽 Food'},
-  {name:'Bagel & Cream Cheese', price:2.00, cat:'🍽 Food'},
-  {name:'Vegan Tuna Wrap',   price:9.50, cat:'🌯 Wraps & Bowls'},
-  {name:'Veggie Wrap',       price:8.50, cat:'🌯 Wraps & Bowls'},
-  {name:'Falafel Wrap',      price:8.50, cat:'🌯 Wraps & Bowls'},
-  {name:'Chicken Sandwich',  price:10.50,cat:'🌯 Wraps & Bowls'},
-  {name:'Burrito',           price:10.50,cat:'🌯 Wraps & Bowls'},
-  {name:'Rice Bowl',         price:10.00,cat:'🌯 Wraps & Bowls'},
-  {name:'Salad Bowl',        price:10.00,cat:'🌯 Wraps & Bowls'},
+  // ☕ Hot Drinks
+  {name:'Coffee (Regular)',           price:2.75, price2:3.50,  cat:'☕ Hot Drinks'},
+  {name:'Americano',                  price:3.25, price2:3.95,  cat:'☕ Hot Drinks'},
+  {name:'Latte',                      price:4.50, price2:5.50,  cat:'☕ Hot Drinks'},
+  {name:'Cappuccino',                 price:4.50, price2:5.50,  cat:'☕ Hot Drinks'},
+  {name:'Matcha Latte',               price:5.25, price2:6.25,  cat:'☕ Hot Drinks'},
+  {name:'Hot Chocolate',              price:3.75, price2:4.75,  cat:'☕ Hot Drinks'},
+  {name:'Add Oat Milk',               price:0.75,               cat:'☕ Hot Drinks'},
+  {name:'Add Extra Shot',             price:1.25,               cat:'☕ Hot Drinks'},
+  {name:'Add Flavor Syrup',           price:0.75,               cat:'☕ Hot Drinks'},
+  // 🧊 Iced Drinks
+  {name:'Iced Coffee',                price:3.50, price2:4.50,  cat:'🧊 Iced Drinks'},
+  {name:'Iced Latte',                 price:4.75, price2:5.95,  cat:'🧊 Iced Drinks'},
+  {name:'Iced Matcha Latte',          price:5.50, price2:6.75,  cat:'🧊 Iced Drinks'},
+  // 🍵 Herbal Teas
+  {name:'Ginger Tea',                 price:3.25, price2:3.95,  cat:'🍵 Herbal Teas'},
+  {name:'Chamomile Tea',              price:3.25, price2:3.95,  cat:'🍵 Herbal Teas'},
+  {name:'Peppermint Tea',             price:3.25, price2:3.95,  cat:'🍵 Herbal Teas'},
+  {name:'Hibiscus Tea',               price:3.25, price2:3.95,  cat:'🍵 Herbal Teas'},
+  // 🥤 Fresh Juices
+  {name:'Apple, Carrot & Beet',       price:9.00, price2:12.00, cat:'🥤 Fresh Juices'},
+  {name:'Apple, Parsley & Lemon',     price:9.00, price2:12.00, cat:'🥤 Fresh Juices'},
+  // 🥤 Smoothies
+  {name:'Apple, Banana & Blueberry',  price:7.50, price2:9.50,  cat:'🥤 Smoothies'},
+  {name:'Pineapple Mango Hemp Lime',  price:7.50, price2:9.50,  cat:'🥤 Smoothies'},
+  {name:'Chocolate Banana',           price:7.50, price2:9.50,  cat:'🥤 Smoothies'},
+  {name:'Add Protein',                price:2.00,               cat:'🥤 Smoothies'},
+  // 🥤 Canned Soda
+  {name:'Canned Soda',                price:2.50,               cat:'🥤 Canned Soda'},
+  // 🍽 Breakfast & Light Bites
+  {name:'Avocado Toast',              price:7.50,               cat:'🍽 Breakfast & Light Bites'},
+  {name:'Parfait',                    price:6.50,               cat:'🍽 Breakfast & Light Bites'},
+  {name:'Blueberry Muffin',           price:3.00,               cat:'🍽 Breakfast & Light Bites'},
+  {name:'Corn Muffin',                price:3.00,               cat:'🍽 Breakfast & Light Bites'},
+  {name:'Plain Bagel',                price:1.50,               cat:'🍽 Breakfast & Light Bites'},
+  {name:'Butter Bagel w/ Cream Cheese', price:2.00,             cat:'🍽 Breakfast & Light Bites'},
+  // 🌯 Wraps & Sandwiches
+  {name:'Vegan Tuna Wrap',            price:9.50,               cat:'🌯 Wraps & Sandwiches'},
+  {name:'Add Avocado',                price:0.75,               cat:'🌯 Wraps & Sandwiches'},
+  {name:'Veggie Wrap',                price:8.50,               cat:'🌯 Wraps & Sandwiches'},
+  {name:'Falafel Wrap',               price:8.50,               cat:'🌯 Wraps & Sandwiches'},
+  {name:'Grilled Chicken Sandwich',   price:10.50,              cat:'🌯 Wraps & Sandwiches'},
+  {name:'Burrito',                    price:10.50,              cat:'🌯 Wraps & Sandwiches'},
+  {name:'Add Chicken to Burrito',     price:2.50,               cat:'🌯 Wraps & Sandwiches'},
+  {name:'Add Guacamole',              price:1.75,               cat:'🌯 Wraps & Sandwiches'},
+  // 🍲 Bowls
+  {name:'Build Your Rice Bowl',       price:10.00,              cat:'🍲 Bowls'},
+  {name:'Salad Bowl',                 price:10.00,              cat:'🍲 Bowls'},
+  {name:'Extra Bowl Topping',         price:0.75,               cat:'🍲 Bowls'},
+  {name:'Add Chicken to Bowl',        price:2.50,               cat:'🍲 Bowls'},
 ];
 
 const CATS = [...new Set(MENU.map(i=>i.cat))];
@@ -158,12 +219,24 @@ function itemsKeyboard(catIdx) {
 function itemOptionsKeyboard(itemIdx) {
   const item = MENU[itemIdx];
   const half = (item.price / 2).toFixed(2);
+  if(item.price2) {
+    // Item has S/L sizes
+    return [
+      [{text:`Small  $${item.price.toFixed(2)}`,  callback_data:`a:${itemIdx}:${item.price}:Small`}],
+      [{text:`Large  $${item.price2.toFixed(2)}`, callback_data:`a:${itemIdx}:${item.price2}:Large`}],
+      [{text:`½ Half Price  $${half}`,            callback_data:`a:${itemIdx}:${half}:half`}],
+      [
+        {text:'⬅️ Back', callback_data:`c:${CATS.indexOf(item.cat)}`},
+        {text:'🛒 Cart',  callback_data:'v'}
+      ],
+    ];
+  }
   return [
     [{text:`✅ Full Price  $${item.price.toFixed(2)}`, callback_data:`a:${itemIdx}:${item.price}:full`}],
     [{text:`½ Half Price  $${half}`,                  callback_data:`a:${itemIdx}:${half}:half`}],
     [
-      {text:'⬅️ Back',    callback_data:`c:${CATS.indexOf(item.cat)}`},
-      {text:'🛒 Cart',    callback_data:'v'}
+      {text:'⬅️ Back', callback_data:`c:${CATS.indexOf(item.cat)}`},
+      {text:'🛒 Cart',  callback_data:'v'}
     ],
   ];
 }

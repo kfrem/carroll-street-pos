@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carroll Street Café · POS User Guide</title>
+<style>
+:root{
+  --dark:#1a1a18;--dark2:#2c2b27;--dark3:#3a3632;
+  --cream:#f5f3ee;--cream2:#f0ede6;
+  --green:#4caf87;--red:#e25c4b;--blue:#3b7dd8;
+  --border:#e8e6e0;--muted:#888;--white:#fff;
+  --sidebar:260px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:15px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:var(--cream);color:var(--dark);line-height:1.6}
+
+/* ── SIDEBAR ── */
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar);background:var(--dark);overflow-y:auto;z-index:100;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+.sb-brand{padding:24px 20px 18px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.sb-logo{font-size:30px;margin-bottom:8px}
+.sb-title{font-size:14px;font-weight:800;color:#fff;letter-spacing:0.2px}
+.sb-sub{font-size:10px;color:rgba(255,255,255,0.3);margin-top:3px}
+.sb-search{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.sb-search input{width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 12px;color:#fff;font-size:12px;outline:none}
+.sb-search input::placeholder{color:rgba(255,255,255,0.3)}
+.nav-group{padding:14px 0 4px}
+.nav-label{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.25);padding:0 20px 6px}
+.nav-a{display:block;padding:7px 20px;font-size:12.5px;color:rgba(255,255,255,0.55);text-decoration:none;border-left:3px solid transparent;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-a:hover{color:#fff;background:rgba(255,255,255,0.05)}
+.nav-a.on{color:#fff;border-left-color:var(--green);background:rgba(255,255,255,0.07)}
+.sb-footer{margin-top:auto;padding:16px;border-top:1px solid rgba(255,255,255,0.07)}
+.pdf-btn{width:100%;padding:10px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.13);color:#fff;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s;letter-spacing:0.2px}
+.pdf-btn:hover{background:rgba(255,255,255,0.16)}
+.sb-updated{font-size:10px;color:rgba(255,255,255,0.2);text-align:center;margin-top:10px}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sidebar)}
+.section{max-width:760px;margin:0 auto;padding:60px 40px;border-bottom:1px solid var(--border)}
+.section:last-child{border-bottom:none}
+
+/* ── HERO ── */
+.hero{background:linear-gradient(135deg,var(--dark) 0%,#3a3632 60%,#2c3a32 100%);color:#fff;padding:80px 40px 72px calc(var(--sidebar) + 40px);margin-left:calc(-1 * var(--sidebar))}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:6px;background:rgba(76,175,135,0.15);border:1px solid rgba(76,175,135,0.3);color:var(--green);font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-bottom:18px}
+.hero h1{font-size:42px;font-weight:900;letter-spacing:-1.5px;line-height:1.05;margin-bottom:14px}
+.hero-sub{font-size:16px;color:rgba(255,255,255,0.55);max-width:500px;line-height:1.75}
+.hero-pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.hero-pill{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px 18px;min-width:160px}
+.hero-pill-icon{font-size:22px;margin-bottom:6px}
+.hero-pill-title{font-size:13px;font-weight:700;color:#fff}
+.hero-pill-desc{font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.5}
+
+/* ── TYPOGRAPHY ── */
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+h2.stitle{font-size:28px;font-weight:900;letter-spacing:-0.8px;margin-bottom:8px}
+.intro{font-size:15px;color:#666;line-height:1.75;margin-bottom:32px}
+h3.sh{font-size:17px;font-weight:800;margin:36px 0 12px}
+
+/* ── STEPS ── */
+.steps{display:flex;flex-direction:column;gap:18px;margin:20px 0}
+.step{display:flex;gap:16px;align-items:flex-start}
+.snum{width:30px;height:30px;border-radius:50%;background:var(--dark);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.scontent{}
+.stit{font-size:14px;font-weight:700;margin-bottom:3px}
+.sdesc{font-size:13.5px;color:#555;line-height:1.65}
+.sdesc code,.step-desc code{background:var(--cream2);padding:1px 6px;border-radius:4px;font-size:12px;font-family:'SF Mono',Consolas,monospace;color:var(--dark)}
+.sdesc strong{color:var(--dark)}
+
+/* ── CALLOUTS ── */
+.box{border-radius:12px;padding:14px 16px;margin:20px 0;font-size:13.5px;line-height:1.65;display:flex;gap:12px;align-items:flex-start}
+.box-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.box-body{}
+.box-title{font-weight:700;margin-bottom:3px;font-size:13px;text-transform:uppercase;letter-spacing:0.4px}
+.tip{background:#f0faf5;border:1px solid #b8e8d0}
+.tip .box-title{color:#1e7a50}
+.warn{background:#fffbf0;border:1px solid #f5d580}
+.warn .box-title{color:#8a6000}
+.info{background:#f0f5ff;border:1px solid #bdd0f5}
+.info .box-title{color:#2050a0}
+.danger{background:#fff0ef;border:1px solid #f5c0bc}
+.danger .box-title{color:#a02018}
+
+/* ── CARDS ── */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:24px 0}
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px}
+.card-icon{font-size:28px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:700;margin-bottom:5px}
+.card-desc{font-size:13px;color:var(--muted);line-height:1.6}
+
+/* ── SCREEN MOCKUP ── */
+.mockup{margin:24px 0}
+.mockup-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.screen{background:var(--cream2);border-radius:18px;overflow:hidden;border:1px solid var(--border);box-shadow:0 6px 30px rgba(0,0,0,0.1)}
+.sc-hdr{background:linear-gradient(135deg,var(--dark),var(--dark3));padding:10px 16px;color:#fff;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.sc-hdr-sub{font-size:9px;opacity:0.4;margin-top:2px}
+.sc-staff{background:#3a3936;padding:6px 12px;display:flex;gap:6px;font-size:11px}
+.sc-sbtn{border:1px solid #5a5955;background:transparent;color:#bbb;border-radius:12px;padding:3px 10px;font-size:11px;cursor:default}
+.sc-sbtn.on{background:#fff;color:#2c2b27;border-color:#fff;font-weight:600}
+.sc-tabs{background:#fff;display:flex;border-bottom:1px solid var(--border)}
+.sc-tab{flex:1;padding:8px 2px;text-align:center;font-size:11px;color:var(--muted);cursor:default}
+.sc-tab.on{color:var(--dark);font-weight:700;border-bottom:2px solid var(--dark)}
+.sc-body{padding:12px}
+.mc{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:10px;display:flex;flex-direction:column}
+.mc-img{height:70px;background:linear-gradient(135deg,#e8e5de,#d5d0c8);display:flex;align-items:center;justify-content:center;font-size:32px}
+.mc-body{padding:8px 10px 10px}
+.mc-name{font-size:12px;font-weight:700}
+.mc-price{font-size:11px;color:var(--muted);margin-top:2px}
+.mc-add{margin-top:8px;width:100%;padding:6px;background:var(--dark2);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:default}
+.mock-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cat-lbl{font-size:10px;font-weight:800;color:#5a5650;text-transform:uppercase;letter-spacing:1px;padding:6px 0 8px}
+.mock-cart-bar{background:var(--dark2);color:#fff;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.mock-vbtn{background:#fff;color:var(--dark);border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:default}
+
+/* ── PHONE MOCKUP ── */
+.phone-wrap{display:flex;justify-content:center;margin:28px 0}
+.phone{width:260px;background:#fff;border-radius:38px;border:7px solid var(--dark);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.18)}
+.ph-bar{background:var(--dark);color:#fff;padding:10px 18px 6px;font-size:9px;display:flex;justify-content:space-between;align-items:center}
+.ph-chat-hdr{background:#fff;padding:10px 14px;border-bottom:1px solid var(--cream2);display:flex;align-items:center;gap:10px}
+.ph-av{width:34px;height:34px;border-radius:50%;background:var(--dark);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ph-bot{font-size:13px;font-weight:700}
+.ph-online{font-size:10px;color:var(--green)}
+.ph-msgs{padding:10px 10px 6px;background:#e5ddd5;min-height:160px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:80%;border-radius:16px;padding:8px 12px;font-size:11px;line-height:1.45}
+.msg-bot{background:#fff;align-self:flex-start;border-bottom-left-radius:4px}
+.msg-me{background:#25d366;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.tg-btns{background:#e5ddd5;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:0 10px 10px}
+.tg-btn{background:#fff;border-radius:8px;padding:7px 4px;font-size:10px;text-align:center;color:#128c7e;font-weight:600}
+.tg-btn.span2{grid-column:span 2}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0;border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+.tbl th{background:var(--dark);color:#fff;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--border);background:#fff;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl code{background:var(--cream2);padding:2px 7px;border-radius:4px;font-size:11.5px;font-family:'SF Mono',Consolas,monospace}
+
+/* ── FAQ ── */
+.faq{margin:16px 0}
+.faq-item{border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.faq-q{padding:15px 18px;font-size:14px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#fff;user-select:none;gap:12px}
+.faq-q:hover{background:var(--cream2)}
+.faq-arr{font-size:11px;color:var(--muted);transition:transform .22s;flex-shrink:0}
+.faq-item.open .faq-arr{transform:rotate(180deg)}
+.faq-a{font-size:13.5px;color:#555;line-height:1.7;max-height:0;overflow:hidden;background:var(--cream);transition:max-height .3s ease,padding .3s ease;padding:0 18px}
+.faq-item.open .faq-a{max-height:500px;padding:14px 18px 18px}
+
+/* ── DL BUTTONS ── */
+.dl-row{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}
+.dl-btn{display:flex;align-items:center;gap:12px;padding:14px 18px;background:#fff;border:1px solid var(--border);border-radius:12px;text-decoration:none;color:var(--dark);font-size:13px;font-weight:600;transition:box-shadow .15s,background .15s;flex:1;min-width:150px}
+.dl-btn:hover{background:var(--cream2);box-shadow:0 3px 12px rgba(0,0,0,0.08)}
+.dl-icon{font-size:26px;flex-shrink:0}
+.dl-sub{font-size:10px;color:var(--muted);font-weight:400;margin-top:1px}
+
+/* ── INLINE TAG ── */
+.tag{display:inline-block;background:var(--cream2);border:1px solid var(--border);color:var(--dark2);font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;vertical-align:middle}
+.tag.green{background:#edfaf4;border-color:#b8e8d0;color:#1e7a50}
+.tag.red{background:#fef0ef;border-color:#f5c0bc;color:#a02018}
+
+/* ── MOBILE ── */
+.mob-btn{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--dark);color:#fff;border:none;border-radius:10px;width:42px;height:42px;font-size:20px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:90}
+
+/* ── DIVIDER ── */
+.div{height:1px;background:var(--border);margin:32px 0}
+
+/* ── PRINT ── */
+@media print{
+  @page{margin:18mm 20mm}
+  .sidebar,.mob-btn,.mob-overlay,.sb-footer,.pdf-btn{display:none!important}
+  .main{margin-left:0!important}
+  .hero{margin-left:0!important;padding-left:40px!important;break-after:page}
+  .section{padding:36px 0;break-inside:avoid}
+  .screen,.phone{display:none}
+  .faq-a{max-height:none!important;padding:14px 18px 18px!important}
+  body{font-size:12px}
+  h2.stitle{font-size:20px}
+  .hero h1{font-size:28px}
+  .cards{grid-template-columns:1fr 1fr}
+  a{color:inherit;text-decoration:none}
+  .hero-pills{display:none}
+}
+
+@media(max-width:800px){
+  :root{--sidebar:280px}
+  .sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .hero{margin-left:0;padding:80px 24px 52px}
+  .section{padding:48px 24px}
+  .cards{grid-template-columns:1fr}
+  .dl-row{flex-direction:column}
+  .mob-btn{display:flex}
+  .mob-overlay.open{display:block}
+}
+</style>
+</head>
+<body>
+
+<button class="mob-btn" id="mob" onclick="toggleSidebar()">☰</button>
+<div class="mob-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">☕</div>
+    <div class="sb-title">Carroll Street Café</div>
+    <div class="sb-sub">POS User Guide · v1.0 · April 2026</div>
+  </div>
+
+  <div class="sb-search">
+    <input type="text" id="search-input" placeholder="Search this guide…" oninput="filterNav(this.value)">
+  </div>
+
+  <div id="nav-tree">
+    <div class="nav-group">
+      <div class="nav-label">Getting Started</div>
+      <a class="nav-a" href="#welcome" data-kw="welcome overview intro">👋 Welcome</a>
+      <a class="nav-a" href="#quickstart" data-kw="quick start first sale begin">⚡ First Sale in 5 Steps</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Web POS</div>
+      <a class="nav-a" href="#signin" data-kw="pin login sign in password">🔐 Signing In</a>
+      <a class="nav-a" href="#menu" data-kw="menu order add items cart">🛒 Building an Order</a>
+      <a class="nav-a" href="#payment" data-kw="payment pay charge confirm sale">💰 Taking Payment</a>
+      <a class="nav-a" href="#receipt" data-kw="receipt invoice print">🖨 Printing Receipts</a>
+      <a class="nav-a" href="#refunds" data-kw="refund cancel undo">↩ Refunds</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Reports &amp; Management</div>
+      <a class="nav-a" href="#reports" data-kw="reports analytics revenue data csv pdf">📊 Reports</a>
+      <a class="nav-a" href="#manage" data-kw="manage menu edit add item staff pin settings">⚙️ Menu &amp; Settings</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Telegram Bot</div>
+      <a class="nav-a" href="#tg-download" data-kw="telegram download install app">📲 Download Telegram</a>
+      <a class="nav-a" href="#tg-setup" data-kw="telegram bot setup authorise">🤖 Set Up the Bot</a>
+      <a class="nav-a" href="#tg-orders" data-kw="telegram order buttons cart">🛒 Placing Orders</a>
+      <a class="nav-a" href="#tg-voice" data-kw="voice audio transcribe speak">🎙 Voice Ordering</a>
+      <a class="nav-a" href="#tg-reports" data-kw="telegram report week month">📈 Bot Reports</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Card Reader</div>
+      <a class="nav-a" href="#reader-setup" data-kw="stripe terminal reader setup connect">🔧 Reader Setup</a>
+      <a class="nav-a" href="#reader-pay" data-kw="card payment reader charge">💳 Payment Flow</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Help</div>
+      <a class="nav-a" href="#faq" data-kw="faq troubleshoot problem help">❓ FAQ</a>
+      <a class="nav-a" href="#cmds" data-kw="commands reference list">📋 Command Reference</a>
+    </div>
+  </div>
+
+  <div class="sb-footer">
+    <button class="pdf-btn" onclick="window.print()">🖨&nbsp; Download / Print as PDF</button>
+    <!-- UPDATE THIS DATE when you edit the guide -->
+    <div class="sb-updated">Last updated: April 2026</div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ════════════════ HERO ════════════════ -->
+<div class="hero" id="welcome">
+  <div class="hero-eyebrow">✦ User Guide</div>
+  <h1>Carroll Street Café<br>POS System</h1>
+  <p class="hero-sub">Everything staff needs to take orders, charge cards, run reports, and use the Telegram bot — from day one.</p>
+  <div class="hero-pills">
+    <div class="hero-pill">
+      <div class="hero-pill-icon">💻</div>
+      <div class="hero-pill-title">Web POS</div>
+      <div class="hero-pill-desc">Works on any phone, tablet or laptop — just open the HTML file.</div>
+    </div>
+    <div class="hero-pill">
+      <div class="hero-pill-icon">📱</div>
+      <div class="hero-pill-title">Telegram Bot</div>
+      <div class="hero-pill-desc">Take orders and view reports from anywhere via Telegram.</div>
+    </div>
+    <div class="hero-pill">
+      <div class="hero-pill-icon">💳</div>
+      <div class="hero-pill-title">Stripe Terminal</div>
+      <div class="hero-pill-desc">Accept card payments directly through the POS.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ QUICK START ════════════════ -->
+<section class="section" id="quickstart">
+  <div class="eyebrow">Getting Started</div>
+  <h2 class="stitle">First Sale in 5 Steps</h2>
+  <p class="intro">Brand new? Follow these steps to go from zero to your first completed sale in under 2 minutes.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="scontent">
+        <div class="stit">Open the POS</div>
+        <div class="sdesc">Open <code>index.html</code> in any browser on a phone, tablet, or computer. The PIN screen appears.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="scontent">
+        <div class="stit">Enter your PIN</div>
+        <div class="sdesc">Type the access PIN from your manager and tap <strong>Open POS</strong>. The default PIN is <code>1234</code> — managers should change this before going live.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="scontent">
+        <div class="stit">Tap your name</div>
+        <div class="sdesc">In the dark bar at the top, tap your name (Cashier 1, 2, etc.) so sales are recorded against you.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">4</div>
+      <div class="scontent">
+        <div class="stit">Add items from the Menu tab</div>
+        <div class="sdesc">Scroll through categories and tap <strong>+ Add</strong> on each item. Items with sizes will ask Small or Large.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">5</div>
+      <div class="scontent">
+        <div class="stit">Confirm and charge</div>
+        <div class="sdesc">Tap the cart bar at the bottom → <strong>View Order</strong> → <strong>Confirm Sale</strong> → <strong>💳 Charge Card Reader</strong> (or <em>Mark as Paid (Manual)</em> if no reader is connected).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box tip">
+    <div class="box-icon">💡</div>
+    <div class="box-body"><div class="box-title">No card reader yet?</div>Use <strong>Mark as Paid (Manual)</strong> — the sale is still saved and appears in reports. Connect the reader later when it's set up.</div>
+  </div>
+</section>
+
+<!-- ════════════════ SIGNING IN ════════════════ -->
+<section class="section" id="signin">
+  <div class="eyebrow">Web POS</div>
+  <h2 class="stitle">Signing In</h2>
+  <p class="intro">The POS uses a shared PIN — no individual accounts needed. Anyone with the PIN can open the till.</p>
+
+  <div class="mockup">
+    <div class="mockup-lbl">What you'll see when you open the POS</div>
+    <div class="screen">
+      <div style="padding:40px 24px;text-align:center;background:var(--cream)">
+        <div style="font-size:52px;margin-bottom:14px">☕</div>
+        <div style="font-size:20px;font-weight:900;margin-bottom:4px">Carroll Street Café</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:28px">Enter your access PIN to open the POS</div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:13px;font-size:14px;color:#ccc;max-width:280px;margin:0 auto 10px;letter-spacing:6px">● ● ● ●</div>
+        <div style="background:var(--dark2);color:#fff;border-radius:10px;padding:13px;font-size:14px;font-weight:700;max-width:280px;margin:0 auto">Open POS</div>
+        <div style="margin-top:20px;font-size:11px;color:#ccc">No PIN? Contact your manager.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="scontent">
+        <div class="stit">Type the PIN</div>
+        <div class="sdesc">Tap the input field and type the numeric PIN. The digits are hidden for privacy.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="scontent">
+        <div class="stit">Tap Open POS (or press Enter)</div>
+        <div class="sdesc">Wrong PIN? A red error message appears for 3 seconds then clears — just try again.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="scontent">
+        <div class="stit">Select your name from the staff bar</div>
+        <div class="sdesc">The dark bar shows up to 4 cashier names. Tap yours — it turns white to confirm selection. You can switch names between orders at any time.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box warn">
+    <div class="box-icon">🔑</div>
+    <div class="box-body"><div class="box-title">Managers: change the PIN before going live</div>Go to <strong>Manage → Change Access PIN</strong>. Set something only staff know. The old default <code>1234</code> is too easy to guess.</div>
+  </div>
+</section>
+
+<!-- ════════════════ BUILDING AN ORDER ════════════════ -->
+<section class="section" id="menu">
+  <div class="eyebrow">Web POS</div>
+  <h2 class="stitle">Building an Order</h2>
+  <p class="intro">The Menu tab shows every available item grouped by category. Adding items is fast — a few taps builds a complete order.</p>
+
+  <div class="mockup">
+    <div class="mockup-lbl">Menu tab — live view</div>
+    <div class="screen">
+      <div class="sc-hdr">
+        <div>
+          <div>Carroll Street Café</div>
+          <div class="sc-hdr-sub">Medgar Evers College · POS System</div>
+        </div>
+        <div style="font-size:11px;opacity:0.55">10:42 AM 🟢</div>
+      </div>
+      <div class="sc-staff">
+        <span style="color:#888;font-size:10px;margin-right:4px">Staff:</span>
+        <span class="sc-sbtn on">Maria</span>
+        <span class="sc-sbtn">James</span>
+        <span class="sc-sbtn">Tanya</span>
+      </div>
+      <div class="sc-tabs">
+        <div class="sc-tab on">Menu</div>
+        <div class="sc-tab">Order <span style="background:#e25c4b;color:#fff;border-radius:8px;padding:0 5px;font-size:9px">2</span></div>
+        <div class="sc-tab">Reports</div>
+        <div class="sc-tab">Manage</div>
+      </div>
+      <div class="sc-body">
+        <div class="cat-lbl">Hot Drinks</div>
+        <div class="mock-grid">
+          <div class="mc">
+            <div class="mc-img">☕</div>
+            <div class="mc-body">
+              <div class="mc-name">Latte</div>
+              <div class="mc-price">$4.50 / $5.50</div>
+              <button class="mc-add">+ Add</button>
+            </div>
+          </div>
+          <div class="mc">
+            <div class="mc-img">☕</div>
+            <div class="mc-body">
+              <div class="mc-name">Matcha Latte</div>
+              <div class="mc-price">$5.25 / $6.25</div>
+              <button class="mc-add">+ Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-cart-bar">
+        <div>
+          <div style="font-size:10px;opacity:0.6">2 items</div>
+          <div style="font-size:16px;font-weight:700">$9.75</div>
+        </div>
+        <button class="mock-vbtn">View Order</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="scontent">
+        <div class="stit">Scroll through categories</div>
+        <div class="sdesc">Items are organised by category — Hot Drinks, Iced Drinks, Herbal Teas, Fresh Juices, Smoothies, Breakfast &amp; Light Bites, Wraps &amp; Sandwiches, Bowls. Scroll down to see all.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="scontent">
+        <div class="stit">Tap "+ Add" on an item</div>
+        <div class="sdesc">Single-price items (like a Muffin) are added instantly. Items showing two prices (e.g. <em>$4.50 / $5.50</em>) will pop up a <strong>Small / Large</strong> picker — tap your choice.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="scontent">
+        <div class="stit">Watch the cart bar at the bottom</div>
+        <div class="sdesc">Every addition updates the running total and item count live. A toast notification ("Latte added") confirms each tap.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">4</div>
+      <div class="scontent">
+        <div class="stit">Tap "View Order" to review</div>
+        <div class="sdesc">See all cart items. Use <strong>−</strong> and <strong>+</strong> buttons to adjust quantities. Reducing an item to zero removes it. Add an optional order note (table number, customer name, special request).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box tip">
+    <div class="box-icon">💡</div>
+    <div class="box-body"><div class="box-title">Order note field</div>On the Order tab there's a note field at the top. Use it for: <em>"Table 4"</em>, <em>"No ice"</em>, <em>"Extra hot"</em>, or a customer name for pick-up orders.</div>
+  </div>
+</section>
+
+<!-- ════════════════ PAYMENT ════════════════ -->
+<section class="section" id="payment">
+  <div class="eyebrow">Web POS</div>
+  <h2 class="stitle">Taking Payment</h2>
+  <p class="intro">Once you've reviewed the order, completing the sale is two taps.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="scontent">
+        <div class="stit">Tap "Confirm Sale"</div>
+        <div class="sdesc">On the Order tab, tap the dark <strong>Confirm Sale</strong> button. A full-screen payment panel slides up showing the total in large text and every item listed.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="scontent">
+        <div class="stit">Charge via card reader <em>or</em> mark manual</div>
+        <div class="sdesc">
+          <strong>Reader connected <span class="tag green">💚 green dot</span>:</strong> tap <strong>💳 Charge Card Reader</strong> — the reader activates immediately.<br><br>
+          <strong>No reader <span class="tag">grey dot</span>:</strong> button shows <strong>Mark as Paid (Manual)</strong> — tap it after you've taken payment on your standalone machine.
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="scontent">
+        <div class="stit">Wait — don't tap anything</div>
+        <div class="sdesc">The button cycles: <em>Creating payment… → Present card to reader… → Processing…</em> The customer taps/inserts their card on the reader. The POS handles everything automatically.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">4</div>
+      <div class="scontent">
+        <div class="stit">✅ Sale complete</div>
+        <div class="sdesc">A green success screen appears. Offer to print a receipt or tap <strong>Done — No Invoice</strong> to start the next order.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box danger">
+    <div class="box-icon">⚠️</div>
+    <div class="box-body"><div class="box-title">If the card reader shows an error</div>No charge was made — it's safe. The payment is automatically cancelled. You can retry straight away, or use a standalone card machine and tap <strong>Mark as Paid (Manual)</strong> to still record the sale.</div>
+  </div>
+</section>
+
+<!-- ════════════════ RECEIPT ════════════════ -->
+<section class="section" id="receipt">
+  <div class="eyebrow">Web POS</div>
+  <h2 class="stitle">Printing Receipts</h2>
+  <p class="intro">After every completed sale you're offered the option to print a receipt. You can skip it if the customer doesn't need one.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="scontent">
+        <div class="stit">Invoice screen appears automatically</div>
+        <div class="sdesc">You'll see ✅ <strong>Sale Complete!</strong> with the amount and cashier name.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="scontent">
+        <div class="stit">Tap "🖨 Print Invoice"</div>
+        <div class="sdesc">Your device's print dialog opens. Select your receipt printer. The receipt is formatted cleanly — café name, unique receipt number, date, time, items, total, and "Served by" cashier name.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="scontent">
+        <div class="stit">Or tap "Done — No Invoice"</div>
+        <div class="sdesc">Skips printing and goes straight to Reports where you can see the sale logged.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box info">
+    <div class="box-icon">ℹ️</div>
+    <div class="box-body"><div class="box-title">Receipt number format</div>Each receipt gets a unique reference like <code>CSC-260418-1042</code> — useful when a customer queries a charge. <em>CSC</em> = Carroll Street Café, then date, then time.</div>
+  </div>
+</section>
+
+<!-- ════════════════ REFUNDS ════════════════ -->
+<section class="section" id="refunds">
+  <div class="eyebrow">Web POS</div>
+  <h2 class="stitle">Processing Refunds</h2>
+  <p class="intro">Mistakes happen. Any sale from today's log can be refunded with a reason attached.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="scontent">
+        <div class="stit">Go to the Reports tab → Sale Log</div>
+        <div class="sdesc">Scroll down to the <strong>Sale Log</strong> section. Today's transactions are listed newest first.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="scontent">
+        <div class="stit">Tap the red "Refund" button on the sale</div>
+        <div class="sdesc">Each sale card shows a small <span class="tag red">Refund</span> button on the right of the cashier name line.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="scontent">
+        <div class="stit">Enter a reason and confirm</div>
+        <div class="sdesc">Type a short reason (e.g. <em>"wrong item", "customer changed mind"</em>) and tap <strong>Confirm Refund</strong>. The negative amount is logged immediately and deducted from net revenue.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box warn">
+    <div class="box-icon">⚠️</div>
+    <div class="box-body"><div class="box-title">POS refund = record only</div>This logs the refund in your sales data. You still need to process the actual money return through your Stripe Dashboard or card machine separately.</div>
+  </div>
+</section>
+
+<!-- ════════════════ REPORTS ════════════════ -->
+<section class="section" id="reports">
+  <div class="eyebrow">Reports</div>
+  <h2 class="stitle">Reading Your Reports</h2>
+  <p class="intro">The Reports tab gives you a live dashboard of today's performance. It updates automatically whenever a sale comes in from any device — including the Telegram bot.</p>
+
+  <div class="cards">
+    <div class="card"><div class="card-icon">💰</div><div class="card-title">Net Revenue</div><div class="card-desc">Total income after refunds. Gross revenue and refund total shown underneath.</div></div>
+    <div class="card"><div class="card-icon">🧾</div><div class="card-title">Sales Count</div><div class="card-desc">Completed transactions today. Refund records are excluded.</div></div>
+    <div class="card"><div class="card-icon">🛍</div><div class="card-title">Items Sold</div><div class="card-desc">Total individual items across all orders — useful for stock and prep planning.</div></div>
+    <div class="card"><div class="card-icon">📊</div><div class="card-title">Avg. Sale</div><div class="card-desc">Mean transaction value. Below $7? Consider upsell prompts. Above $12? Customers are ordering multiple items.</div></div>
+  </div>
+
+  <h3 class="sh">What else is in the report?</h3>
+
+  <div class="steps" style="gap:14px">
+    <div class="step">
+      <div class="snum" style="background:var(--green)">⏰</div>
+      <div class="scontent">
+        <div class="stit">Time of Day Analysis</div>
+        <div class="sdesc">Morning / Afternoon / Evening revenue with bar charts. Shows your peak hour and quietest hour so you can staff appropriately.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum" style="background:var(--green)">🏆</div>
+      <div class="scontent">
+        <div class="stit">Top Items by Revenue &amp; Volume</div>
+        <div class="sdesc">Best sellers by money earned and by units sold — these can differ (e.g. a $1.50 bagel might outsell a $10 bowl in volume).</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum" style="background:var(--green)">📂</div>
+      <div class="scontent">
+        <div class="stit">Category Breakdown</div>
+        <div class="sdesc">Revenue share by drink/food category — know whether hot drinks or bowls are driving the most income today.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum" style="background:var(--green)">👤</div>
+      <div class="scontent">
+        <div class="stit">Staff Performance</div>
+        <div class="sdesc">Sales count, revenue total, and average transaction per cashier — useful for weekly reviews.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum" style="background:var(--green)">💡</div>
+      <div class="scontent">
+        <div class="stit">Smart Insights</div>
+        <div class="sdesc">Auto-generated observations like <em>"Morning-heavy business — 64% of revenue before noon"</em> or <em>"Low average ticket — try upsell prompts"</em>.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sh">Exporting</h3>
+  <div class="cards">
+    <div class="card"><div class="card-icon">📄</div><div class="card-title">Export PDF</div><div class="card-desc">Tap <strong>⬇ Export PDF</strong> — saves the full report to PDF via your browser. Great for end-of-day records or sending to management.</div></div>
+    <div class="card"><div class="card-icon">📊</div><div class="card-title">Export CSV</div><div class="card-desc">Downloads a spreadsheet with every sale — time, staff, items, total, notes. Open in Excel or Google Sheets for custom analysis.</div></div>
+  </div>
+
+  <div class="box danger">
+    <div class="box-icon">🗑</div>
+    <div class="box-body"><div class="box-title">Clear today's data — use with extreme caution</div>The <strong>Clear today's data</strong> button permanently deletes all sales from today's database. <em>This cannot be undone.</em> Always export a CSV or PDF first.</div>
+  </div>
+</section>
+
+<!-- ════════════════ MANAGE ════════════════ -->
+<section class="section" id="manage">
+  <div class="eyebrow">Management</div>
+  <h2 class="stitle">Menu &amp; Settings</h2>
+  <p class="intro">The Manage tab is for managers. It controls the menu, staff names, the PIN, and the card reader connection. Keep this tab away from regular cashiers.</p>
+
+  <h3 class="sh">Adding a New Menu Item</h3>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Fill in the form at the top of the Manage tab</div><div class="sdesc">Enter the item name. Then its small price. If it has two sizes, add the large price in the second box.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Choose a category</div><div class="sdesc">Select from the dropdown — this determines which section of the menu it appears in.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="stit">Add a description (optional)</div><div class="sdesc">A short line shown under the item name, e.g. ingredients or allergen info.</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scontent"><div class="stit">Tap "+ Add to Menu"</div><div class="sdesc">The item appears on the menu immediately. Note: menu changes are saved to this device only — add on each device separately.</div></div></div>
+  </div>
+
+  <h3 class="sh">Editing or Hiding Items</h3>
+  <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:14px">Scroll down in Manage to see the full item list. Tap <strong>Edit</strong> next to any item to change its name or price. You can also choose to <strong>hide</strong> it — this removes it from the customer-facing menu without deleting it. Ideal for seasonal items or items that are temporarily out of stock.</p>
+  <div class="box tip"><div class="box-icon">💡</div><div class="box-body"><div class="box-title">Restoring a hidden item</div>Hidden items appear faded in the Manage list. Tap <strong>Show</strong> next to it to bring it back on the menu instantly.</div></div>
+
+  <h3 class="sh">Updating Staff Names</h3>
+  <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:14px">Scroll to <strong>Staff names</strong>. Replace "Cashier 1" etc. with real first names. Tap <strong>Save names</strong>. The staff bar at the top updates immediately and all future sales are recorded under the correct names in reports.</p>
+
+  <h3 class="sh">Changing the Access PIN</h3>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Scroll to "Change Access PIN" in Manage</div><div class="sdesc">Type a new PIN — minimum 4 digits, numbers only.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Tap Save</div><div class="sdesc">The new PIN is saved to the cloud database. Any device that opens the POS fresh will require the new PIN. Share it with staff via a private message — not on a sticky note!</div></div></div>
+  </div>
+
+  <div class="box warn"><div class="box-icon">🔒</div><div class="box-body"><div class="box-title">Already logged-in sessions stay open</div>Changing the PIN doesn't log out existing sessions. To force a full logout on a device, close the browser tab on that device.</div></div>
+</section>
+
+<!-- ════════════════ TELEGRAM DOWNLOAD ════════════════ -->
+<section class="section" id="tg-download">
+  <div class="eyebrow">Telegram Bot</div>
+  <h2 class="stitle">Download Telegram</h2>
+  <p class="intro">The Telegram bot lets staff take orders from their personal phone without opening the web POS. All sales sync to the same database in real time. Step one: get the Telegram app.</p>
+
+  <div class="dl-row">
+    <a class="dl-btn" href="https://apps.apple.com/app/telegram-messenger/id686449807" target="_blank">
+      <div class="dl-icon">🍎</div>
+      <div><div>iPhone &amp; iPad</div><div class="dl-sub">App Store</div></div>
+    </a>
+    <a class="dl-btn" href="https://play.google.com/store/apps/details?id=org.telegram.messenger" target="_blank">
+      <div class="dl-icon">🤖</div>
+      <div><div>Android</div><div class="dl-sub">Google Play</div></div>
+    </a>
+    <a class="dl-btn" href="https://desktop.telegram.org" target="_blank">
+      <div class="dl-icon">💻</div>
+      <div><div>Desktop</div><div class="dl-sub">Windows · Mac · Linux</div></div>
+    </a>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Tap the link for your device above</div><div class="sdesc">This takes you to the official Telegram download page. Telegram is completely free.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Install and open the app</div><div class="sdesc">Tap <strong>Get</strong> (iOS) or <strong>Install</strong> (Android) then open Telegram when it finishes.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="stit">Sign up with your phone number</div><div class="sdesc">Telegram asks for your mobile number. Enter it, receive a 5-digit code by SMS, type it in, and you're registered. No password needed.</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scontent"><div class="stit">You're in</div><div class="sdesc">You'll land on the main chat screen. Now go to the next section to find the café bot.</div></div></div>
+  </div>
+</section>
+
+<!-- ════════════════ TELEGRAM SETUP ════════════════ -->
+<section class="section" id="tg-setup">
+  <div class="eyebrow">Telegram Bot</div>
+  <h2 class="stitle">Setting Up the Bot</h2>
+  <p class="intro">Once Telegram is installed, connecting to the café bot takes about one minute.</p>
+
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Get the bot username from your manager</div><div class="sdesc">The bot has a username like <code>@carrollstreetcafebot</code>. Your manager created it and will share the exact name.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Search for it in Telegram</div><div class="sdesc">Tap the <strong>🔍 Search</strong> icon at the top of Telegram. Type the bot's username exactly. Tap the result when it appears.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="stit">Tap Start</div><div class="sdesc">At the bottom of the chat, tap the blue <strong>Start</strong> button. The bot sends a welcome message and a <strong>🛒 New Order</strong> button.</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scontent"><div class="stit">Set your name (optional but recommended)</div><div class="sdesc">Type <code>staff Maria</code> (replace Maria with your name). This records your name against every sale you process through the bot.</div></div></div>
+  </div>
+
+  <div class="box warn"><div class="box-icon">🔒</div><div class="box-body"><div class="box-title">"Not authorised" message?</div>Your Telegram ID hasn't been added to the bot's allowed list. To find your ID, message <strong>@userinfobot</strong> on Telegram — it replies with your numeric ID instantly. Send that number to your manager to be added.</div></div>
+</section>
+
+<!-- ════════════════ TELEGRAM ORDERS ════════════════ -->
+<section class="section" id="tg-orders">
+  <div class="eyebrow">Telegram Bot</div>
+  <h2 class="stitle">Placing Orders via Bot</h2>
+  <p class="intro">The bot uses tap-able button menus — no typing needed for orders. Browse categories, choose items, review your cart, and confirm in seconds.</p>
+
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="ph-bar"><span style="font-weight:700">9:41</span><span>▶&nbsp;📶&nbsp;🔋</span></div>
+      <div class="ph-chat-hdr">
+        <div class="ph-av">☕</div>
+        <div>
+          <div class="ph-bot">Carroll Street Café</div>
+          <div class="ph-online">● online</div>
+        </div>
+      </div>
+      <div class="ph-msgs">
+        <div class="msg msg-bot"><strong>Carroll Street Café POS</strong><br>Welcome, Maria!<br><br>Tap New Order to start 👇</div>
+        <div class="msg msg-me">🛒 New Order</div>
+        <div class="msg msg-bot">Select a category:</div>
+      </div>
+      <div class="tg-btns">
+        <div class="tg-btn">☕ Hot Drinks</div>
+        <div class="tg-btn">🧊 Iced Drinks</div>
+        <div class="tg-btn">🍵 Herbal Teas</div>
+        <div class="tg-btn">🥤 Fresh Juices</div>
+        <div class="tg-btn">🥤 Smoothies</div>
+        <div class="tg-btn">🍽 Breakfast</div>
+        <div class="tg-btn span2" style="color:#e25c4b">❌ Cancel</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Tap 🛒 New Order (or type /sell)</div><div class="sdesc">This clears any previous cart and shows the category buttons freshly.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Tap a category</div><div class="sdesc">All items in that category appear as buttons, each showing the item name and price.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="stit">Tap an item</div><div class="sdesc">A second row of buttons appears: <strong>Small</strong>, <strong>Large</strong>, and <strong>½ Half Price</strong> (for student/staff discounts). Tap your choice — it's added to the cart and the cart updates on screen.</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scontent"><div class="stit">Keep adding or view the cart</div><div class="sdesc">Tap <strong>➕ Add More</strong> to go back to categories. Tap <strong>🛒 View Cart</strong> to see everything. Use <strong>−</strong> and <strong>+</strong> buttons to adjust quantities.</div></div></div>
+    <div class="step"><div class="snum">5</div><div class="scontent"><div class="stit">Add a discount (optional)</div><div class="sdesc">In the cart, tap <strong>🏷 Add Discount</strong>. Choose a percentage (5–50%) or a fixed amount (−$1 to −$10). To undo, tap <strong>✖ Remove Discount</strong>.</div></div></div>
+    <div class="step"><div class="snum">6</div><div class="scontent"><div class="stit">Tap ✅ Confirm Sale</div><div class="sdesc">The sale saves instantly. A summary appears showing all items, discount (if any), and final total. The sale syncs to the web POS reports in real time.</div></div></div>
+  </div>
+</section>
+
+<!-- ════════════════ VOICE ════════════════ -->
+<section class="section" id="tg-voice">
+  <div class="eyebrow">Telegram Bot</div>
+  <h2 class="stitle">Voice Ordering</h2>
+  <p class="intro">Send a voice note and the bot transcribes it. Requires the Groq API key to be configured on the server by a manager.</p>
+
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Hold the 🎤 microphone button in Telegram</div><div class="sdesc">It's in the message bar on the right. Hold it and speak your order clearly — e.g. <em>"One large latte, one blueberry muffin, two iced matcha"</em>.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Release to send</div><div class="sdesc">The bot replies with <em>"🎙 Transcribing…"</em> then shows what it heard in italics.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="stit">Confirm using the button menu</div><div class="sdesc">Voice shows what was said — then use <code>/sell</code> with the button menu to actually add items and confirm the order. Voice transcription is a reference tool, not an automatic cart builder.</div></div></div>
+  </div>
+
+  <div class="box info"><div class="box-icon">🎙</div><div class="box-body"><div class="box-title">Tips for accurate transcription</div>Speak clearly and use exact menu item names — "latte", "matcha", "falafel wrap". The AI works best in English and is trained on café vocabulary.</div></div>
+</section>
+
+<!-- ════════════════ BOT REPORTS ════════════════ -->
+<section class="section" id="tg-reports">
+  <div class="eyebrow">Telegram Bot</div>
+  <h2 class="stitle">Reports &amp; Commands via Bot</h2>
+  <p class="intro">Get a full sales report delivered directly to Telegram — perfect for managers checking performance without opening the web POS.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Type this</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><code>report</code></td><td>Full report for today — revenue, items, staff, insights (3 messages)</td></tr>
+      <tr><td><code>report week</code></td><td>Last 7 days rolling summary</td></tr>
+      <tr><td><code>report month</code></td><td>Current calendar month summary</td></tr>
+      <tr><td><code>refund 4.50 wrong order</code></td><td>Logs a −$4.50 refund with reason "wrong order"</td></tr>
+      <tr><td><code>staff Maria</code></td><td>Sets your name to Maria for this session's sales</td></tr>
+      <tr><td><code>/sell</code> or <code>order</code></td><td>Starts a new order with the button menu</td></tr>
+      <tr><td><code>help</code></td><td>Shows all available commands with a New Order button</td></tr>
+      <tr><td>Send a voice note</td><td>Transcribes your message (Groq API required)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box tip"><div class="box-icon">📊</div><div class="box-body"><div class="box-title">The report arrives as 3 messages</div><strong>Message 1</strong> — Revenue, transactions, time-of-day breakdown, hourly chart.<br><strong>Message 2</strong> — Top items by revenue &amp; volume, slow movers, category chart.<br><strong>Message 3</strong> — Staff performance, refunds, and smart insights.</div></div>
+</section>
+
+<!-- ════════════════ READER SETUP ════════════════ -->
+<section class="section" id="reader-setup">
+  <div class="eyebrow">Card Reader</div>
+  <h2 class="stitle">Card Reader Setup</h2>
+  <p class="intro">The POS integrates with Stripe Terminal — a physical card reader. Customers tap or insert their card directly. This is a one-time manager setup.</p>
+
+  <div class="cards">
+    <div class="card"><div class="card-icon">🏦</div><div class="card-title">Stripe Account</div><div class="card-desc">Sign up at <strong>stripe.com</strong>. Free to create — you pay a small fee per transaction only.</div></div>
+    <div class="card"><div class="card-icon">📡</div><div class="card-title">Terminal Reader</div><div class="card-desc">Recommended: <strong>Stripe Reader S700</strong> or <strong>BBPOS WisePOS E</strong>. Both connect via WiFi. Buy from stripe.com/terminal.</div></div>
+    <div class="card"><div class="card-icon">🔑</div><div class="card-title">Stripe Secret Key</div><div class="card-desc">Found in <strong>Stripe Dashboard → Developers → API Keys</strong>. Starts with <code>sk_live_</code>. Goes on the bot server as an environment variable.</div></div>
+    <div class="card"><div class="card-icon">🌐</div><div class="card-title">Live Bot Server</div><div class="card-desc">The bot.js server must be online. The POS calls it to create payments. Hosting options: Railway, Render, Fly.io — all free tiers available.</div></div>
+  </div>
+
+  <h3 class="sh">Setup Steps (Manager only — done once)</h3>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Register the reader in Stripe Dashboard</div><div class="sdesc">Go to <strong>Stripe Dashboard → Terminal → Readers → + Add reader</strong>. Power on the reader — it shows a registration code on its screen. Enter that code in Stripe. Give it a label like <em>"Carroll Street Counter"</em>.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Add STRIPE_SECRET_KEY to the bot server</div><div class="sdesc">On your hosting platform, go to Environment Variables and add: <code>STRIPE_SECRET_KEY = sk_live_...</code>. Restart the server after saving.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="stit">Set BACKEND_URL in index.html</div><div class="sdesc">Open <code>index.html</code> in a text editor. Find the line near the top of the script:<br><code>const BACKEND_URL = '';</code><br>Fill in your server URL, e.g. <code>'https://your-bot.railway.app'</code>. Save the file.</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scontent"><div class="stit">Connect the reader from the POS</div><div class="sdesc">Log into the POS → <strong>Manage tab → Card Reader section</strong> → tap <strong>Discover Readers</strong>. Your reader appears in the list — tap it. The header dot turns green 💚 when connected.</div></div></div>
+  </div>
+
+  <div class="box tip"><div class="box-icon">✅</div><div class="box-body"><div class="box-title">Reconnecting each session</div>The reader needs to be reconnected each time the POS is opened fresh. It only takes 5 seconds: Manage → Discover Readers → tap your reader. Once connected, it stays connected for the whole session.</div></div>
+</section>
+
+<!-- ════════════════ READER PAYMENT FLOW ════════════════ -->
+<section class="section" id="reader-pay">
+  <div class="eyebrow">Card Reader</div>
+  <h2 class="stitle">Card Payment Flow</h2>
+  <p class="intro">Once connected, the reader handles everything. No manual steps — just tap the button and let the customer present their card.</p>
+
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="stit">Check the green dot in the header</div><div class="sdesc">The small dot next to the clock should be <strong>green 💚</strong>. Tap it to open Manage and connect if it's grey.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="stit">Build the order and tap Confirm Sale</div><div class="sdesc">The payment screen shows the total and all items. The button reads <strong>💳 Charge Card Reader</strong>.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="stit">Tap Charge Card Reader</div><div class="sdesc">The reader screen activates. Turn it toward the customer. They tap (contactless), insert (chip), or swipe their card.</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scontent"><div class="stit">Reader approves → POS saves automatically</div><div class="sdesc">On approval the POS detects it instantly, saves the sale to the database, and shows the invoice screen. No extra tapping needed from you.</div></div></div>
+  </div>
+
+  <div class="box info"><div class="box-icon">💡</div><div class="box-body"><div class="box-title">Automatic fallback</div>If the reader disconnects mid-session, the button automatically changes to <strong>Mark as Paid (Manual)</strong>. You can still take payment on a standalone machine and record the sale.</div></div>
+</section>
+
+<!-- ════════════════ FAQ ════════════════ -->
+<section class="section" id="faq">
+  <div class="eyebrow">Help</div>
+  <h2 class="stitle">Frequently Asked Questions</h2>
+  <p class="intro">Quick answers to the most common questions.</p>
+
+  <div class="faq">
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>The POS shows a red dot — what does that mean?</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">The red dot means the app can't reach the database. Check your internet connection first. If your connection is fine, the Supabase database may be briefly unavailable — wait a moment and refresh the page. No sales data is lost.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>I forgot the PIN. How do I get in?</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">Contact your manager. They can look up or reset the PIN from the Manage tab on a device that's still logged in. If nobody is logged in and the PIN was never changed from the default, try <strong>1234</strong>.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>I added a menu item but it doesn't appear on another phone.</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">Menu changes are saved to each device's local storage — not to the cloud. To have the same menu on all devices you need to add the item on each one separately. Cloud menu sync across devices is a planned future update.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>Can two cashiers use the POS at the same time?</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">Yes — open the POS on as many phones or tablets as you need. Each cashier selects their name. All sales sync to the same database in real time. Any device's Reports tab shows live updates as sales come in from other devices.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>A sale went through twice by accident. How do I fix it?</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">Go to <strong>Reports → Sale Log</strong>, find the duplicate, and tap <strong>Refund</strong>. Enter "Duplicate sale" as the reason. This logs a negative transaction that cancels it in your revenue totals. If the card was also charged twice, process the card refund separately in your Stripe Dashboard.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>The card reader says "Declined" — what do I tell the customer?</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">A decline comes from the customer's bank — not a problem with the POS or reader. Politely ask them to try a different card or payment method. The sale is automatically cancelled on the POS (no charge was made to anyone). You can retry immediately.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>The Telegram bot says "Not authorised".</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">Your Telegram chat ID hasn't been added to the bot's allowed list. Message <strong>@userinfobot</strong> on Telegram — it replies with your numeric ID. Send that ID to your manager. They add it to the <code>ALLOWED_CHAT_IDS</code> environment variable on the bot server and restart it.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>How do I update this user guide?</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">This guide is an HTML file stored with the POS files — <code>USER_GUIDE.html</code>. Open it in any text editor (e.g. Notepad, VS Code). Each section has a clear comment label like <code>&lt;!-- TELEGRAM ORDERS --&gt;</code>. Edit the text, save, and refresh the browser. Also update the "Last updated" date at the bottom of the sidebar.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>The card reader isn't showing up when I tap Discover Readers.</span><span class="faq-arr">▼</span></div>
+      <div class="faq-a">Check: (1) The reader is powered on and connected to WiFi — its screen should show the Stripe logo or idle screen. (2) The reader is registered in your Stripe Dashboard under Terminal → Readers. (3) <code>BACKEND_URL</code> is correctly set in <code>index.html</code> and the bot server is running with <code>STRIPE_SECRET_KEY</code> set.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ════════════════ COMMAND REFERENCE ════════════════ -->
+<section class="section" id="cmds">
+  <div class="eyebrow">Reference</div>
+  <h2 class="stitle">Telegram Command Reference</h2>
+  <p class="intro">Complete list of every command the bot understands. Any unrecognised message shows a New Order button automatically.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Command</th><th>What it does</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>/start</code> or <code>help</code></td><td>Welcome message with New Order button</td><td><code>/start</code></td></tr>
+      <tr><td><code>/sell</code> or <code>order</code></td><td>Start a fresh order (clears current cart)</td><td><code>/sell</code></td></tr>
+      <tr><td><code>staff [name]</code></td><td>Set your name for this session</td><td><code>staff Maria</code></td></tr>
+      <tr><td><code>report</code></td><td>Today's full sales report (3 messages)</td><td><code>report</code></td></tr>
+      <tr><td><code>report week</code></td><td>Last 7 days rolling report</td><td><code>report week</code></td></tr>
+      <tr><td><code>report month</code></td><td>Current calendar month report</td><td><code>report month</code></td></tr>
+      <tr><td><code>refund [amount] [reason]</code></td><td>Log a refund with reason</td><td><code>refund 9.50 wrong wrap</code></td></tr>
+      <tr><td>🎤 Voice note</td><td>Transcribes audio (Groq API required)</td><td>Hold mic, speak clearly</td></tr>
+    </tbody>
+  </table>
+
+  <div style="height:60px"></div>
+</section>
+
+</main>
+
+<script>
+// ── SCROLL SPY ─────────────────────────────────────────────────
+const allSections = document.querySelectorAll('section[id], div[id]');
+const allNavLinks = document.querySelectorAll('.nav-a');
+
+function onScroll(){
+  let active = '';
+  allSections.forEach(s => {
+    if(s.getBoundingClientRect().top <= 130) active = s.id;
+  });
+  allNavLinks.forEach(a => {
+    a.classList.toggle('on', a.getAttribute('href') === '#' + active);
+  });
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+
+// ── FAQ ────────────────────────────────────────────────────────
+function toggleFaq(el){
+  const item = el.closest('.faq-item');
+  const wasOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if(!wasOpen) item.classList.add('open');
+}
+
+// ── SIDEBAR ─────────────────────────────────────────────────────
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+allNavLinks.forEach(a => a.addEventListener('click', () => {
+  if(window.innerWidth <= 800) closeSidebar();
+}));
+
+// ── SEARCH / FILTER ─────────────────────────────────────────────
+function filterNav(q){
+  q = q.toLowerCase().trim();
+  allNavLinks.forEach(a => {
+    const kw = (a.dataset.kw || '') + ' ' + a.textContent;
+    a.style.display = (!q || kw.toLowerCase().includes(q)) ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-label').forEach(lbl => {
+    const group = lbl.closest('.nav-group');
+    const visible = [...group.querySelectorAll('.nav-a')].some(a => a.style.display !== 'none');
+    group.style.display = visible ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

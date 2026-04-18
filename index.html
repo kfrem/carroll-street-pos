@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Carroll Street Café · POS</title>
+<script src="https://js.stripe.com/terminal/v1/"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── RESET & BASE ── */
@@ -249,6 +250,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .setup p{font-size:14px;color:#888;text-align:center;margin-bottom:28px;line-height:1.7}
 .setup-in{width:100%;max-width:400px;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:14px;margin-bottom:10px;background:#fff;color:#1a1a18;outline:none}
 .setup-btn{width:100%;max-width:400px;padding:14px;background:#2c2b27;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px}
+
+/* ── STRIPE TERMINAL ── */
+.reader-item{padding:11px 13px;background:#f5f3ee;border-radius:10px;margin-bottom:8px;cursor:pointer;border:1px solid #e8e6e0;transition:background .15s}
+.reader-item:active{background:#ede9e1}
+.reader-item.connected{border-color:#4caf87;background:#f0faf5}
+.tsr-status{font-size:12px;color:#888;margin-bottom:12px;line-height:1.6}
+.tsr-status.ok{color:#4caf87;font-weight:500}
+.tsr-status.err{color:#e25c4b}
 </style>
 </head>
 <body>
@@ -274,7 +283,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span class="clock" id="clock">--:--</span>
-        <span class="conn-dot" id="conn-dot" title="Connection status"></span>
+        <span class="conn-dot" id="reader-dot" title="No card reader connected" style="cursor:pointer" onclick="goTab('manage',null)"></span>
+        <span class="conn-dot" id="conn-dot" title="Database connection"></span>
       </div>
     </div>
   </div>
@@ -382,6 +392,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div style="padding:0 14px 8px;font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.8px">All items (tap to edit)</div>
       <div id="mg-list"></div>
 
+      <!-- Stripe Terminal -->
+      <div class="add-form" style="margin-top:14px">
+        <h3>💳 Card Reader</h3>
+        <div id="tsr-status" class="tsr-status">Set BACKEND_URL in script to enable card reader</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="f-btn" style="flex:1" onclick="discoverReaders()">Discover Readers</button>
+          <button class="f-btn" style="background:#f0ede6;color:#666;border:1px solid #ddd" onclick="disconnectReader()">Disconnect</button>
+        </div>
+        <div id="reader-list"></div>
+      </div>
+
       <!-- PIN Management -->
       <div class="add-form" style="margin-top:14px">
         <h3>🔐 Change Access PIN</h3>
@@ -424,7 +445,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- PAYMENT MODAL -->
 <div class="pay-modal" id="pay-modal">
   <div class="pay-box">
-    <div class="pay-charge-lbl">Enter into card machine</div>
+    <div class="pay-charge-lbl" id="pay-charge-lbl">Confirm and charge</div>
     <div class="pay-amount" id="pay-amount">$0.00</div>
     <div class="pay-items-list" id="pay-items-list"></div>
     <button class="pay-complete-btn" id="pay-complete-btn" onclick="completeSale()">✓ Payment Received</button>
@@ -466,6 +487,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 const SUPABASE_URL = 'https://fxkudktemkkevmjibyjp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_K6zyRZC97277F3-14KIXNw_P0zpX92P';
 let correctPin = '1234'; // default, overridden from Supabase settings table
+
+// ── STRIPE TERMINAL CONFIG ────────────────────────────────────
+// Set this to your bot server URL (where bot.js is deployed)
+// e.g. 'https://your-bot.railway.app' or 'https://your-bot.onrender.com'
+const BACKEND_URL = '';
 
 const CATS = ['Hot Drinks','Iced Drinks','Herbal Teas','Fresh Juices','Smoothies','Canned Soda','Breakfast & Light Bites','Wraps & Sandwiches','Bowls'];
 
@@ -561,6 +587,9 @@ const DEFAULT_MENU = [
 
 // ── STATE ──────────────────────────────────────────────────
 let sb = null;
+let terminal = null;
+let connectedReader = null;
+let collectingPayment = false;
 let menu = JSON.parse(localStorage.getItem('csc_menu') || 'null') || DEFAULT_MENU.map(i=>({...i}));
 let cart = [];
 let staff = 'Cashier 1';
@@ -592,6 +621,7 @@ function checkPin(){
     buildStaffBar();
     updateClock();
     setInterval(updateClock, 15000);
+    initStripeTerminal();
   } else {
     document.getElementById('pin-error').textContent='❌ Wrong PIN. Contact your manager.';
     document.getElementById('pin-input').value='';
@@ -774,6 +804,7 @@ function confirmSale(){
   document.getElementById('pay-items-list').innerHTML=
     cart.map(c=>`<div class="pay-item-row"><span>${c.qty}× ${c.name}</span><span>$${(c.price*c.qty).toFixed(2)}</span></div>`).join('');
   document.getElementById('pay-modal').classList.add('on');
+  updatePaymentButton();
 }
 
 function closePaymentModal(){
@@ -784,18 +815,55 @@ function closePaymentModal(){
 async function completeSale(){
   if(!pendingSaleData) return;
   const btn=document.getElementById('pay-complete-btn');
-  btn.disabled=true; btn.textContent='Saving…';
+
+  if(terminal && connectedReader){
+    // ── Stripe Terminal flow ──────────────────────────────
+    btn.disabled=true;
+    try {
+      btn.textContent='Creating payment…';
+      const r=await fetch(BACKEND_URL+'/stripe/create-payment-intent',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({amount:Math.round(pendingSaleData.total*100)})
+      });
+      const {client_secret, error:piErr}=await r.json();
+      if(piErr) throw new Error(piErr);
+
+      btn.textContent='Present card to reader…';
+      collectingPayment=true;
+      const collectResult=await terminal.collectPaymentMethod(client_secret);
+      collectingPayment=false;
+      if(collectResult.error) throw new Error(collectResult.error.message);
+
+      btn.textContent='Processing…';
+      const processResult=await terminal.processPayment(collectResult.paymentIntent);
+      if(processResult.error) throw new Error(processResult.error.message);
+
+      const stripeId=processResult.paymentIntent.id;
+      pendingSaleData.note=(pendingSaleData.note?pendingSaleData.note+' · ':'')+'pi:'+stripeId;
+      await finalizeSale();
+    } catch(e){
+      if(collectingPayment){ await terminal.cancelCollectPaymentMethod().catch(()=>{}); collectingPayment=false; }
+      btn.disabled=false; updatePaymentButton();
+      showToast('Payment failed: '+e.message);
+    }
+  } else {
+    // ── Manual fallback (no reader connected) ─────────────
+    btn.disabled=true; btn.textContent='Saving…';
+    await finalizeSale();
+  }
+}
+
+async function finalizeSale(){
+  const btn=document.getElementById('pay-complete-btn');
   const ok=await saveSaleToSupabase(pendingSaleData);
-  btn.disabled=false; btn.textContent='✓ Payment Received';
+  btn.disabled=false; updatePaymentButton();
   if(ok){
     lastSavedSale={...pendingSaleData, created_at:new Date().toISOString()};
     document.getElementById('pay-modal').classList.remove('on');
     pendingSaleData=null;
-    // Clear order
     const total=lastSavedSale.total;
     cart=[]; document.getElementById('o-note').value='';
     updateCartBar(); buildOrder();
-    // Show invoice modal
     document.getElementById('inv-sub').textContent='$'+total.toFixed(2)+' · '+staff;
     document.getElementById('inv-modal').classList.add('on');
   }
@@ -1211,6 +1279,101 @@ function showToast(msg){
 
 function updateClock(){
   document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── STRIPE TERMINAL ───────────────────────────────────────────
+function updatePaymentButton(){
+  const btn=document.getElementById('pay-complete-btn');
+  const lbl=document.getElementById('pay-charge-lbl');
+  if(!btn) return;
+  if(terminal&&connectedReader){
+    btn.textContent='💳 Charge Card Reader';
+    if(lbl) lbl.textContent='Tap to send to card reader';
+  } else {
+    btn.textContent='✓ Mark as Paid (Manual)';
+    if(lbl) lbl.textContent='No reader connected — manual mode';
+  }
+}
+
+function updateReaderDot(){
+  const dot=document.getElementById('reader-dot');
+  const status=document.getElementById('tsr-status');
+  if(!dot) return;
+  if(connectedReader){
+    dot.className='conn-dot ok';
+    dot.title='Reader: '+connectedReader.label;
+    if(status){status.textContent='✅ Connected: '+connectedReader.label; status.className='tsr-status ok';}
+  } else if(terminal){
+    dot.className='conn-dot';
+    dot.title='No card reader connected — go to Manage to connect';
+    if(status){status.textContent='No reader connected. Tap "Discover Readers" to find your terminal.'; status.className='tsr-status';}
+  } else {
+    dot.className='conn-dot';
+    dot.title='Card reader not configured';
+    if(status){status.textContent='Set BACKEND_URL in the script config to enable card reader.'; status.className='tsr-status';}
+  }
+}
+
+async function initStripeTerminal(){
+  if(!window.StripeTerminal||!BACKEND_URL){ updateReaderDot(); return; }
+  terminal=StripeTerminal.create({
+    onFetchConnectionToken: async ()=>{
+      const r=await fetch(BACKEND_URL+'/stripe/connection-token',{method:'POST'});
+      const d=await r.json();
+      if(d.error) throw new Error(d.error);
+      return d.secret;
+    },
+    onUnexpectedReaderDisconnect: ()=>{
+      connectedReader=null;
+      updateReaderDot();
+      showToast('⚠️ Card reader disconnected');
+    }
+  });
+  updateReaderDot();
+}
+
+async function discoverReaders(){
+  if(!terminal){ showToast('Set BACKEND_URL first'); return; }
+  const listEl=document.getElementById('reader-list');
+  listEl.innerHTML='<div class="loading">Searching for readers…</div>';
+  const result=await terminal.discoverReaders({discoveryMethod:'internet', simulated:false});
+  if(result.error){
+    listEl.innerHTML='<div class="tsr-status err">'+result.error.message+'</div>'; return;
+  }
+  if(!result.discoveredReaders.length){
+    listEl.innerHTML='<div class="tsr-status">No readers found. Make sure your reader is powered on and registered in your Stripe Dashboard under Terminal › Readers.</div>'; return;
+  }
+  window._discoveredReaders=result.discoveredReaders;
+  listEl.innerHTML=result.discoveredReaders.map((r,i)=>{
+    const isCurrent=connectedReader&&connectedReader.id===r.id;
+    return `<div class="reader-item${isCurrent?' connected':''}" onclick="connectToReader(${i})">
+      <div style="font-size:14px;font-weight:600">${r.label||r.id}</div>
+      <div style="font-size:11px;color:#999;margin-top:2px">${r.device_type} · ${r.status}${isCurrent?' · <span style="color:#4caf87">Connected</span>':''}</div>
+    </div>`;
+  }).join('');
+}
+
+async function connectToReader(idx){
+  if(!terminal) return;
+  const reader=window._discoveredReaders[idx];
+  showToast('Connecting to '+reader.label+'…');
+  const result=await terminal.connectReader(reader);
+  if(result.error){ showToast('Failed: '+result.error.message); return; }
+  connectedReader=result.reader;
+  updateReaderDot();
+  updatePaymentButton();
+  showToast('✅ Connected to '+connectedReader.label);
+  discoverReaders(); // refresh list to show connected state
+}
+
+async function disconnectReader(){
+  if(!terminal||!connectedReader){ showToast('No reader connected'); return; }
+  await terminal.disconnectReader();
+  connectedReader=null;
+  updateReaderDot();
+  updatePaymentButton();
+  showToast('Reader disconnected');
+  document.getElementById('reader-list').innerHTML='';
 }
 
 // ── INIT ──────────────────────────────────────────────────
