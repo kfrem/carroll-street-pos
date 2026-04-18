@@ -119,6 +119,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .clr-btn{margin:4px 14px 14px;padding:12px;border:1px solid #e25c4b;background:transparent;color:#e25c4b;border-radius:10px;width:calc(100% - 28px);font-size:14px;cursor:pointer}
 .export-btn{margin:0 14px 8px;padding:12px;border:1px solid #2c2b27;background:transparent;color:#2c2b27;border-radius:10px;width:calc(100% - 28px);font-size:14px;cursor:pointer;font-weight:500}
 
+/* ── ANALYTICS BARS ── */
+.time-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f3ee}
+.time-row:last-child{border:none}
+.time-label{width:80px;flex-shrink:0}
+.time-name{display:block;font-size:13px;font-weight:600}
+.time-sub{display:block;font-size:10px;color:#bbb}
+.time-bar-wrap{flex:1;height:8px;background:#f0ede6;border-radius:4px;overflow:hidden}
+.time-bar{height:100%;background:#2c2b27;border-radius:4px;transition:width .4s ease}
+.time-stats{width:80px;text-align:right;font-size:12px;font-weight:600;flex-shrink:0}
+.time-pct{font-weight:400;color:#bbb}
+.peak-info{font-size:12px;color:#666;background:#f5f3ee;border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.7}
+
+.item-bar-row{padding:8px 0;border-bottom:1px solid #f5f3ee}
+.item-bar-row:last-child{border:none}
+.item-bar-header{display:flex;justify-content:space-between;margin-bottom:5px}
+.item-bar-name{font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px}
+.item-bar-val{font-size:13px;font-weight:600;flex-shrink:0}
+.item-bar-wrap{height:6px;background:#f0ede6;border-radius:3px;overflow:hidden}
+.item-bar{height:100%;background:#2c2b27;border-radius:3px;transition:width .4s ease}
+.item-bar-sub{font-size:10px;color:#bbb;margin-top:3px}
+
+.insight-item{font-size:13px;color:#444;line-height:1.6;padding:7px 10px;background:#f5f3ee;border-radius:8px;margin-bottom:6px}
+.insight-item:last-child{margin-bottom:0}
+
+.stat-c .ss{font-size:11px;color:#bbb;margin-top:3px;min-height:14px}
+
+/* ── PRINT / PDF ── */
+@media print{
+  body{background:#fff!important;overflow:visible!important}
+  .app{max-width:100%!important;height:auto!important;overflow:visible!important}
+  .header,.staff-bar,.tabs,.cart-bar,#v-menu,#v-order,#v-manage,.export-btn,.clr-btn,.refund-btn,.toast,.setup{display:none!important}
+  .views{overflow:visible!important;height:auto!important;position:static!important}
+  .view{display:none!important;position:static!important;overflow:visible!important}
+  #v-report{display:block!important;padding-bottom:0!important}
+  .log-card{break-inside:avoid;page-break-inside:avoid}
+  .section{break-inside:avoid}
+  @page{margin:15mm}
+}
+
 /* ── MANAGE ── */
 .add-form{margin:14px;padding:16px;background:#fff;border-radius:14px;border:1px solid #f0ede6}
 .add-form h3{font-size:15px;font-weight:600;margin-bottom:14px}
@@ -241,23 +280,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="rpt-date" id="r-date"></div>
       </div>
       <div class="stat-grid">
-        <div class="stat-c"><div class="sl">Revenue</div><div class="sv" id="r-rev">$0.00</div></div>
+        <div class="stat-c"><div class="sl">Net Revenue</div><div class="sv" id="r-rev">$0.00</div><div class="ss" id="r-gross-sub"></div></div>
         <div class="stat-c"><div class="sl">Sales</div><div class="sv" id="r-cnt">0</div></div>
         <div class="stat-c"><div class="sl">Items Sold</div><div class="sv" id="r-itms">0</div></div>
         <div class="stat-c"><div class="sl">Avg. Sale</div><div class="sv" id="r-avg">$0.00</div></div>
       </div>
+      <div class="section" id="r-time-section">
+        <div class="sec-lbl">Time of Day Analysis</div>
+        <div id="r-time-chart"></div>
+        <div id="r-peak"></div>
+      </div>
       <div class="section">
-        <div class="sec-lbl">Top items today</div>
+        <div class="sec-lbl">Top Items by Revenue</div>
         <div id="r-top"><div style="color:#bbb;font-size:13px">No sales yet</div></div>
       </div>
       <div class="section">
-        <div class="sec-lbl">By staff member</div>
-        <div id="r-staff"><div style="color:#bbb;font-size:13px">No sales yet</div></div>
+        <div class="sec-lbl">Top Items by Volume</div>
+        <div id="r-top-vol"><div style="color:#bbb;font-size:13px">No sales yet</div></div>
+      </div>
+      <div class="section" id="r-slow-section" style="display:none">
+        <div class="sec-lbl">Slow Movers</div>
+        <div id="r-slow"></div>
       </div>
       <div class="section">
-        <div class="sec-lbl">Sale log</div>
+        <div class="sec-lbl">Category Breakdown</div>
+        <div id="r-cats"><div style="color:#bbb;font-size:13px">No sales yet</div></div>
+      </div>
+      <div class="section">
+        <div class="sec-lbl">Staff Performance</div>
+        <div id="r-staff"><div style="color:#bbb;font-size:13px">No sales yet</div></div>
+      </div>
+      <div class="section" id="r-insights-section" style="display:none">
+        <div class="sec-lbl">Smart Insights</div>
+        <div id="r-insights"></div>
+      </div>
+      <div class="section">
+        <div class="sec-lbl">Sale Log</div>
         <div id="r-log"></div>
       </div>
+      <button class="export-btn" onclick="exportPDF()" style="background:#2c2b27;color:#fff">⬇ Export PDF</button>
       <button class="export-btn" onclick="exportCSV()">Export CSV</button>
       <button class="clr-btn" onclick="clearDay()">Clear today's data</button>
     </div>
@@ -697,31 +758,128 @@ function buildReport(){
   const refundTotal=Math.abs(refunds.reduce((a,x)=>a+Number(x.total),0));
   const net=gross-refundTotal;
   const itms=sales.reduce((a,x)=>a+(x.items||[]).reduce((b,i)=>b+i.qty,0),0);
+
+  // ── SUMMARY ──
   document.getElementById('r-rev').textContent='$'+net.toFixed(2);
-  document.getElementById('r-rev').title='Gross: $'+gross.toFixed(2)+' | Refunds: -$'+refundTotal.toFixed(2);
+  const gsEl=document.getElementById('r-gross-sub');
+  if(gsEl) gsEl.textContent=refundTotal>0?'Gross $'+gross.toFixed(2)+' · Refunds -$'+refundTotal.toFixed(2):'Gross revenue';
   document.getElementById('r-cnt').textContent=sales.length;
   document.getElementById('r-itms').textContent=itms;
   document.getElementById('r-avg').textContent=sales.length?'$'+(gross/sales.length).toFixed(2):'$0.00';
 
-  // top items
+  // ── TIME OF DAY ──
+  const hourlyRev={}, hourlyCount={};
+  sales.forEach(x=>{
+    const h=new Date(x.created_at).getHours();
+    hourlyRev[h]=(hourlyRev[h]||0)+Number(x.total);
+    hourlyCount[h]=(hourlyCount[h]||0)+1;
+  });
+  const morning=sales.filter(x=>{const h=new Date(x.created_at).getHours();return h>=6&&h<12;});
+  const afternoon=sales.filter(x=>{const h=new Date(x.created_at).getHours();return h>=12&&h<17;});
+  const evening=sales.filter(x=>{const h=new Date(x.created_at).getHours();return h>=17;});
+  const mRev=morning.reduce((a,x)=>a+Number(x.total),0);
+  const aRev=afternoon.reduce((a,x)=>a+Number(x.total),0);
+  const eRev=evening.reduce((a,x)=>a+Number(x.total),0);
+  const tcEl=document.getElementById('r-time-chart');
+  if(tcEl){
+    if(!sales.length){tcEl.innerHTML='<div style="color:#bbb;font-size:13px">No sales yet</div>';}
+    else{
+      const periods=[{label:'Morning',sub:'6am–12pm',rev:mRev,cnt:morning.length},{label:'Afternoon',sub:'12pm–5pm',rev:aRev,cnt:afternoon.length},{label:'Evening',sub:'5pm+',rev:eRev,cnt:evening.length}];
+      const maxP=Math.max(...periods.map(p=>p.rev),0.01);
+      tcEl.innerHTML=periods.map(p=>{
+        const pct=gross>0?Math.round(p.rev/gross*100):0;
+        const bw=Math.round(p.rev/maxP*100);
+        return `<div class="time-row"><div class="time-label"><span class="time-name">${p.label}</span><span class="time-sub">${p.sub} · ${p.cnt} sale${p.cnt!==1?'s':''}</span></div><div class="time-bar-wrap"><div class="time-bar" style="width:${bw}%"></div></div><div class="time-stats">$${p.rev.toFixed(2)} <span class="time-pct">${pct}%</span></div></div>`;
+      }).join('');
+      const pkEl=document.getElementById('r-peak');
+      const hours=Object.keys(hourlyRev).map(Number);
+      if(pkEl&&hours.length){
+        const fmt=h=>h===0?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
+        const peak=hours.reduce((a,b)=>hourlyRev[a]>hourlyRev[b]?a:b);
+        const quiet=hours.length>1?hours.reduce((a,b)=>hourlyRev[a]<hourlyRev[b]?a:b):null;
+        let txt=`🔥 <strong>Peak:</strong> ${fmt(peak)}–${fmt(peak+1)} · $${hourlyRev[peak].toFixed(2)} · ${hourlyCount[peak]} sale${hourlyCount[peak]!==1?'s':''}`;
+        if(quiet!==null&&quiet!==peak) txt+=`<br>💤 <strong>Quietest:</strong> ${fmt(quiet)}–${fmt(quiet+1)} · $${hourlyRev[quiet].toFixed(2)}`;
+        pkEl.innerHTML=`<div class="peak-info">${txt}</div>`;
+      } else if(pkEl) pkEl.innerHTML='';
+    }
+  }
+
+  // ── ITEM ANALYTICS ──
   const imap={};
-  s.forEach(sale=>(sale.items||[]).forEach(i=>{
+  sales.forEach(sale=>(sale.items||[]).forEach(i=>{
     if(!imap[i.name]) imap[i.name]={qty:0,rev:0};
     imap[i.name].qty+=i.qty; imap[i.name].rev+=i.price*i.qty;
   }));
-  const top=Object.entries(imap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
-  document.getElementById('r-top').innerHTML=top.length
-    ?top.map(([n,v])=>`<div class="top-row"><span>${n}</span><span class="top-right">${v.qty}× · $${v.rev.toFixed(2)}</span></div>`).join('')
+  const allItems=Object.entries(imap).sort((a,b)=>b[1].rev-a[1].rev);
+  const topByRev=allItems.slice(0,5);
+  const topByVol=[...allItems].sort((a,b)=>b[1].qty-a[1].qty).slice(0,5);
+  const slowMovers=allItems.length>5?[...allItems].slice(-3):[];
+
+  const maxRev2=topByRev.length?topByRev[0][1].rev:0.01;
+  document.getElementById('r-top').innerHTML=topByRev.length
+    ?topByRev.map(([n,v],idx)=>{
+        const bw=Math.round(v.rev/maxRev2*100);
+        const medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'';
+        return `<div class="item-bar-row"><div class="item-bar-header"><span class="item-bar-name">${medal} ${n}</span><span class="item-bar-val">$${v.rev.toFixed(2)}</span></div><div class="item-bar-wrap"><div class="item-bar" style="width:${bw}%"></div></div><div class="item-bar-sub">${v.qty} sold</div></div>`;
+      }).join('')
     :'<div style="color:#bbb;font-size:13px">No sales yet</div>';
 
-  // staff
+  const maxVol=topByVol.length?topByVol[0][1].qty:1;
+  const tvEl=document.getElementById('r-top-vol');
+  if(tvEl) tvEl.innerHTML=topByVol.length
+    ?topByVol.map(([n,v])=>{
+        const bw=Math.round(v.qty/maxVol*100);
+        return `<div class="item-bar-row"><div class="item-bar-header"><span class="item-bar-name">${n}</span><span class="item-bar-val">${v.qty} sold</span></div><div class="item-bar-wrap"><div class="item-bar" style="width:${bw}%;background:#4caf87"></div></div></div>`;
+      }).join('')
+    :'<div style="color:#bbb;font-size:13px">No sales yet</div>';
+
+  const slowEl=document.getElementById('r-slow');
+  const slowSec=document.getElementById('r-slow-section');
+  if(slowEl&&slowMovers.length){
+    slowSec.style.display='';
+    slowEl.innerHTML=slowMovers.map(([n,v])=>`<div class="top-row"><span>🐌 ${n}</span><span class="top-right">${v.qty}× · $${v.rev.toFixed(2)}</span></div>`).join('');
+  } else if(slowSec) slowSec.style.display='none';
+
+  // ── CATEGORY BREAKDOWN ──
+  const catMap={};
+  sales.forEach(sale=>(sale.items||[]).forEach(i=>{
+    const cat=getItemCategory(i.name);
+    if(!catMap[cat]) catMap[cat]={qty:0,rev:0};
+    catMap[cat].qty+=i.qty; catMap[cat].rev+=i.price*i.qty;
+  }));
+  const catEntries=Object.entries(catMap).sort((a,b)=>b[1].rev-a[1].rev);
+  const catEl=document.getElementById('r-cats');
+  if(catEl){
+    const maxCR=catEntries.length?catEntries[0][1].rev:0.01;
+    catEl.innerHTML=catEntries.length
+      ?catEntries.map(([cat,v])=>{
+          const pct=gross>0?Math.round(v.rev/gross*100):0;
+          const bw=Math.round(v.rev/maxCR*100);
+          return `<div class="item-bar-row"><div class="item-bar-header"><span class="item-bar-name">${cat}</span><span class="item-bar-val">$${v.rev.toFixed(2)} <span style="color:#bbb;font-size:11px">${pct}%</span></span></div><div class="item-bar-wrap"><div class="item-bar" style="width:${bw}%;background:#9b8ecf"></div></div><div class="item-bar-sub">${v.qty} items sold</div></div>`;
+        }).join('')
+      :'<div style="color:#bbb;font-size:13px">No sales yet</div>';
+  }
+
+  // ── STAFF ──
   const smap={};
-  s.forEach(x=>{ if(!smap[x.staff]) smap[x.staff]={t:0,r:0}; smap[x.staff].t++; smap[x.staff].r+=Number(x.total); });
+  sales.forEach(x=>{if(!smap[x.staff])smap[x.staff]={t:0,r:0};smap[x.staff].t++;smap[x.staff].r+=Number(x.total);});
   document.getElementById('r-staff').innerHTML=Object.entries(smap).length
-    ?Object.entries(smap).map(([n,v])=>`<div class="top-row"><span>${n}</span><span class="top-right">${v.t} sales · $${v.r.toFixed(2)}</span></div>`).join('')
+    ?Object.entries(smap).map(([n,v])=>{
+        const avg=v.t>0?v.r/v.t:0;
+        return `<div class="top-row"><span>${n}</span><span class="top-right">${v.t} sales · $${v.r.toFixed(2)} · avg $${avg.toFixed(2)}</span></div>`;
+      }).join('')
     :'<div style="color:#bbb;font-size:13px">No sales yet</div>';
 
-  // log
+  // ── SMART INSIGHTS ──
+  const insights=generateInsights(sales,refunds,gross,net,refundTotal,mRev,aRev,eRev,imap,catMap,smap);
+  const inEl=document.getElementById('r-insights');
+  const inSec=document.getElementById('r-insights-section');
+  if(inEl){
+    if(insights.length){inSec.style.display='';inEl.innerHTML=insights.map(i=>`<div class="insight-item">${i}</div>`).join('');}
+    else inSec.style.display='none';
+  }
+
+  // ── SALE LOG ──
   document.getElementById('r-log').innerHTML=[...s].slice(0,30).map(x=>{
     const t=new Date(x.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
     const isRefund=x.source==='refund';
@@ -734,6 +892,52 @@ function buildReport(){
       ${x.note?`<div class="log-note">${x.note}</div>`:''}
     </div>`;
   }).join('')||'<div style="color:#bbb;font-size:13px">No sales recorded today</div>';
+}
+
+function getItemCategory(itemName){
+  const lower=itemName.toLowerCase();
+  for(const item of menu){
+    if(lower.startsWith(item.name.toLowerCase())) return item.cat;
+  }
+  if(lower.includes('iced')) return 'Iced Drinks';
+  if(lower.includes('tea')) return 'Herbal Teas';
+  if(lower.includes('juice')) return 'Fresh Juices';
+  if(lower.includes('smoothie')||lower.includes('protein')) return 'Smoothies';
+  if(lower.includes('wrap')||lower.includes('sandwich')||lower.includes('burrito')) return 'Wraps & Sandwiches';
+  if(lower.includes('bowl')) return 'Bowls';
+  if(lower.includes('bagel')||lower.includes('muffin')||lower.includes('toast')||lower.includes('parfait')) return 'Breakfast & Light Bites';
+  if(lower.includes('soda')) return 'Canned Soda';
+  return 'Hot Drinks';
+}
+
+function generateInsights(sales,refunds,gross,net,refundTotal,mRev,aRev,eRev,imap,catMap,smap){
+  const insights=[];
+  if(!sales.length) return insights;
+  const avg=gross/sales.length;
+  const dominant=mRev>=aRev&&mRev>=eRev?'morning':aRev>=mRev&&aRev>=eRev?'afternoon':'evening';
+  const domPct=gross>0?Math.round(Math.max(mRev,aRev,eRev)/gross*100):0;
+  if(domPct>=50) insights.push(`☀️ <strong>${dominant.charAt(0).toUpperCase()+dominant.slice(1)}-heavy</strong> business — ${domPct}% of revenue in ${dominant} hours`);
+  const slowArr=[{n:'morning',v:mRev},{n:'afternoon',v:aRev},{n:'evening',v:eRev}];
+  const slowP=slowArr.reduce((a,b)=>a.v<b.v?a:b);
+  if(slowP.n!==dominant&&(mRev>0||aRev>0||eRev>0)) insights.push(`💤 Slowest period: <strong>${slowP.n}</strong> — consider promotions or staffing adjustments`);
+  if(avg<5) insights.push(`📊 Low average ticket ($${avg.toFixed(2)}) — try upsell prompts like add-ons or size upgrades`);
+  else if(avg>12) insights.push(`💰 Strong average ticket: <strong>$${avg.toFixed(2)}</strong> per transaction`);
+  const topCat=Object.entries(catMap).sort((a,b)=>b[1].rev-a[1].rev)[0];
+  if(topCat){const pct=gross>0?Math.round(topCat[1].rev/gross*100):0;insights.push(`🏆 Top category: <strong>${topCat[0]}</strong> — ${pct}% of revenue`);}
+  const topItem=Object.entries(imap).sort((a,b)=>b[1].rev-a[1].rev)[0];
+  if(topItem) insights.push(`⭐ Best seller: <strong>${topItem[0]}</strong> — $${topItem[1].rev.toFixed(2)} · ${topItem[1].qty} sold`);
+  if(refundTotal>0){const rp=gross>0?Math.round(refundTotal/gross*100):0;insights.push(`↩️ <strong>${refunds.length} refund${refunds.length!==1?'s':''}</strong> today — $${refundTotal.toFixed(2)} (${rp}% of gross)`);}
+  const staffList=Object.entries(smap).sort((a,b)=>b[1].r-a[1].r);
+  if(staffList.length>1){const best=staffList[0];const ba=best[1].t>0?best[1].r/best[1].t:0;insights.push(`👤 Top performer: <strong>${best[0]}</strong> — $${best[1].r.toFixed(2)} · avg $${ba.toFixed(2)}/sale`);}
+  if(sales.length>=50) insights.push(`🎉 Great day! <strong>${sales.length} transactions</strong> completed`);
+  else if(sales.length<10) insights.push(`📈 Only ${sales.length} sale${sales.length!==1?'s':''} so far — push for more foot traffic`);
+  return insights;
+}
+
+function exportPDF(){
+  // Switch to report tab first, then print
+  goTab('report',null);
+  setTimeout(()=>window.print(),300);
 }
 
 function exportCSV(){
