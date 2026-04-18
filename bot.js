@@ -219,8 +219,12 @@ async function handleMessage(msg) {
   const text = msg.text || '';
   const lower = text.toLowerCase().trim();
 
+  // Log chat ID to help with setup
+  console.log(`MSG from chatId: ${chatId} | userId: ${userId} | name: ${userName}`);
+
   // Access check
-  if(ALLOWED_IDS.length && !ALLOWED_IDS.includes(chatId) && !ALLOWED_IDS.includes(userId)) {
+  const validIds = ALLOWED_IDS.filter(id => id.length > 0);
+  if(validIds.length && !validIds.includes(chatId) && !validIds.includes(userId)) {
     await tgSend(chatId, '⛔ Sorry, you are not authorised to use this bot.');
     return;
   }
