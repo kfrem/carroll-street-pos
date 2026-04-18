@@ -145,17 +145,56 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 .stat-c .ss{font-size:11px;color:#bbb;margin-top:3px;min-height:14px}
 
+/* ── PAYMENT MODAL ── */
+.pay-modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:450;display:none;align-items:center;justify-content:center;padding:16px}
+.pay-modal.on{display:flex}
+.pay-box{background:#fff;border-radius:22px;padding:28px 22px 22px;width:100%;max-width:420px;animation:slideUp .2s ease;text-align:center}
+.pay-box h3{font-size:15px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+.pay-charge-lbl{font-size:13px;color:#aaa;margin-bottom:4px}
+.pay-amount{font-size:64px;font-weight:900;color:#1a1a18;line-height:1;margin:8px 0 18px;letter-spacing:-2px}
+.pay-items-list{background:#f5f3ee;border-radius:12px;padding:12px 14px;text-align:left;margin-bottom:18px;max-height:180px;overflow-y:auto}
+.pay-item-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #ece9e3}
+.pay-item-row:last-child{border:none}
+.pay-item-row span:last-child{font-weight:600;flex-shrink:0;margin-left:8px}
+.pay-complete-btn{width:100%;padding:16px;background:#2c2b27;color:#fff;border:none;border-radius:14px;font-size:17px;font-weight:700;cursor:pointer;margin-bottom:10px;letter-spacing:0.2px}
+.pay-complete-btn:active{opacity:.85}
+.pay-cancel-btn{width:100%;padding:13px;background:#f0ede6;border:none;border-radius:12px;font-size:14px;color:#888;cursor:pointer}
+
+/* ── INVOICE MODAL ── */
+.inv-modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:460;display:none;align-items:center;justify-content:center;padding:16px}
+.inv-modal.on{display:flex}
+.inv-box{background:#fff;border-radius:22px;padding:26px 22px 22px;width:100%;max-width:420px;animation:slideUp .2s ease;text-align:center}
+.inv-success{font-size:44px;margin-bottom:8px}
+.inv-box h3{font-size:18px;font-weight:700;margin-bottom:4px}
+.inv-box .inv-sub{font-size:13px;color:#aaa;margin-bottom:20px}
+.inv-print-btn{width:100%;padding:14px;background:#2c2b27;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px}
+.inv-done-btn{width:100%;padding:13px;background:#f0ede6;border:none;border-radius:12px;font-size:14px;color:#666;cursor:pointer}
+
+/* ── INVOICE PRINT VIEW (hidden on screen) ── */
+#invoice-print{display:none}
+
 /* ── PRINT / PDF ── */
 @media print{
-  body{background:#fff!important;overflow:visible!important}
-  .app{max-width:100%!important;height:auto!important;overflow:visible!important}
-  .header,.staff-bar,.tabs,.cart-bar,#v-menu,#v-order,#v-manage,.export-btn,.clr-btn,.refund-btn,.toast,.setup{display:none!important}
-  .views{overflow:visible!important;height:auto!important;position:static!important}
-  .view{display:none!important;position:static!important;overflow:visible!important}
-  #v-report{display:block!important;padding-bottom:0!important}
+  @page{margin:12mm}
+  /* Invoice print mode */
+  body.printing-invoice *{display:none!important}
+  body.printing-invoice #invoice-print,
+  body.printing-invoice #invoice-print *{display:block!important}
+  body.printing-invoice #invoice-print table,
+  body.printing-invoice #invoice-print thead,
+  body.printing-invoice #invoice-print tbody,
+  body.printing-invoice #invoice-print tr{display:table!important}
+  body.printing-invoice #invoice-print th,
+  body.printing-invoice #invoice-print td{display:table-cell!important}
+  /* Report print mode */
+  body:not(.printing-invoice){background:#fff!important;overflow:visible!important}
+  body:not(.printing-invoice) .app{max-width:100%!important;height:auto!important;overflow:visible!important}
+  body:not(.printing-invoice) .header,body:not(.printing-invoice) .staff-bar,body:not(.printing-invoice) .tabs,body:not(.printing-invoice) .cart-bar,body:not(.printing-invoice) #v-menu,body:not(.printing-invoice) #v-order,body:not(.printing-invoice) #v-manage,body:not(.printing-invoice) .export-btn,body:not(.printing-invoice) .clr-btn,body:not(.printing-invoice) .refund-btn,body:not(.printing-invoice) .toast,body:not(.printing-invoice) .setup{display:none!important}
+  body:not(.printing-invoice) .views{overflow:visible!important;height:auto!important;position:static!important}
+  body:not(.printing-invoice) .view{display:none!important;position:static!important;overflow:visible!important}
+  body:not(.printing-invoice) #v-report{display:block!important;padding-bottom:0!important}
   .log-card{break-inside:avoid;page-break-inside:avoid}
   .section{break-inside:avoid}
-  @page{margin:15mm}
 }
 
 /* ── MANAGE ── */
@@ -381,6 +420,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="view-btn" onclick="goTab('order',null)">View Order</button>
   </div>
 </div>
+
+<!-- PAYMENT MODAL -->
+<div class="pay-modal" id="pay-modal">
+  <div class="pay-box">
+    <div class="pay-charge-lbl">Enter into card machine</div>
+    <div class="pay-amount" id="pay-amount">$0.00</div>
+    <div class="pay-items-list" id="pay-items-list"></div>
+    <button class="pay-complete-btn" id="pay-complete-btn" onclick="completeSale()">✓ Payment Received</button>
+    <button class="pay-cancel-btn" onclick="closePaymentModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- INVOICE MODAL -->
+<div class="inv-modal" id="inv-modal">
+  <div class="inv-box">
+    <div class="inv-success">✅</div>
+    <h3>Sale Complete!</h3>
+    <div class="inv-sub" id="inv-sub">Sale saved successfully</div>
+    <button class="inv-print-btn" onclick="printInvoice()">🖨 Print Invoice</button>
+    <button class="inv-done-btn" onclick="closeInvoiceModal()">Done — No Invoice</button>
+  </div>
+</div>
+
+<!-- INVOICE PRINT (hidden, only shows when printing) -->
+<div id="invoice-print"></div>
 
 <!-- REFUND MODAL -->
 <div class="refund-modal" id="refund-modal">
@@ -697,21 +761,102 @@ function chgQty(i,d){
   updateCartBar(); buildOrder();
 }
 
-async function confirmSale(){
+let pendingSaleData = null;
+let lastSavedSale = null;
+
+function confirmSale(){
   if(!cart.length) return;
-  const btn = document.getElementById('pay-btn');
-  btn.disabled=true; btn.textContent='Saving…';
   const total=cart.reduce((s,c)=>s+c.price*c.qty,0);
   const note=document.getElementById('o-note').value.trim();
-  const sale={staff, items:cart.map(c=>({...c})), total, note};
-  const ok = await saveSaleToSupabase(sale);
+  pendingSaleData={staff, items:cart.map(c=>({...c})), total, note};
+  // Show payment modal with large amount
+  document.getElementById('pay-amount').textContent='$'+total.toFixed(2);
+  document.getElementById('pay-items-list').innerHTML=
+    cart.map(c=>`<div class="pay-item-row"><span>${c.qty}× ${c.name}</span><span>$${(c.price*c.qty).toFixed(2)}</span></div>`).join('');
+  document.getElementById('pay-modal').classList.add('on');
+}
+
+function closePaymentModal(){
+  document.getElementById('pay-modal').classList.remove('on');
+  pendingSaleData=null;
+}
+
+async function completeSale(){
+  if(!pendingSaleData) return;
+  const btn=document.getElementById('pay-complete-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  const ok=await saveSaleToSupabase(pendingSaleData);
+  btn.disabled=false; btn.textContent='✓ Payment Received';
   if(ok){
-    showToast('✓ Sale saved — $'+total.toFixed(2));
+    lastSavedSale={...pendingSaleData, created_at:new Date().toISOString()};
+    document.getElementById('pay-modal').classList.remove('on');
+    pendingSaleData=null;
+    // Clear order
+    const total=lastSavedSale.total;
     cart=[]; document.getElementById('o-note').value='';
     updateCartBar(); buildOrder();
-    goTab('report',null); buildReport();
+    // Show invoice modal
+    document.getElementById('inv-sub').textContent='$'+total.toFixed(2)+' · '+staff;
+    document.getElementById('inv-modal').classList.add('on');
   }
-  btn.disabled=false; btn.textContent='✓ Confirm Sale';
+}
+
+function closeInvoiceModal(){
+  document.getElementById('inv-modal').classList.remove('on');
+  goTab('report',null); buildReport();
+}
+
+function printInvoice(){
+  if(!lastSavedSale) return;
+  const s=lastSavedSale;
+  const now=new Date(s.created_at);
+  const receiptNo='CSC-'+now.getFullYear().toString().slice(-2)+
+    String(now.getMonth()+1).padStart(2,'0')+
+    String(now.getDate()).padStart(2,'0')+'-'+
+    String(now.getHours()).padStart(2,'0')+
+    String(now.getMinutes()).padStart(2,'0')+
+    String(now.getSeconds()).padStart(2,'0');
+  const dateStr=now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const timeStr=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const itemRows=(s.items||[]).map(i=>`
+    <tr>
+      <td style="padding:5px 0;border-bottom:1px solid #eee">${i.qty}× ${i.name}</td>
+      <td style="padding:5px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap">$${(i.price*i.qty).toFixed(2)}</td>
+    </tr>`).join('');
+  document.getElementById('invoice-print').innerHTML=`
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:400px;margin:0 auto;padding:24px;color:#1a1a18">
+      <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #1a1a18;padding-bottom:16px">
+        <div style="font-size:24px;font-weight:900;letter-spacing:-0.5px">Carroll Street Café</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Medgar Evers College · Brooklyn, NY</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:16px">
+        <div><strong style="color:#1a1a18">Receipt #</strong><br>${receiptNo}</div>
+        <div style="text-align:right"><strong style="color:#1a1a18">${dateStr}</strong><br>${timeStr}</div>
+      </div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px">Served by: <strong style="color:#1a1a18">${s.staff}</strong></div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px">
+        <thead>
+          <tr><th style="text-align:left;padding:6px 0;border-bottom:2px solid #1a1a18;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#888">Item</th><th style="text-align:right;padding:6px 0;border-bottom:2px solid #1a1a18;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#888">Amount</th></tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;padding:12px 0;border-top:2px solid #1a1a18;border-bottom:2px solid #1a1a18;margin-bottom:14px">
+        <span>TOTAL</span><span>$${Number(s.total).toFixed(2)}</span>
+      </div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px">Payment: <strong style="color:#1a1a18">Card</strong></div>
+      ${s.note?`<div style="font-size:12px;color:#888;margin-bottom:4px">Note: ${s.note}</div>`:''}
+      <div style="text-align:center;margin-top:24px;font-size:13px;color:#888;line-height:1.8;border-top:1px solid #eee;padding-top:16px">
+        Thank you for visiting<br><strong style="color:#1a1a18">Carroll Street Café</strong><br>
+        <span style="font-size:11px">We hope to see you again soon!</span>
+      </div>
+    </div>`;
+  document.getElementById('inv-modal').classList.remove('on');
+  document.body.classList.add('printing-invoice');
+  window.print();
+  setTimeout(()=>{
+    document.body.classList.remove('printing-invoice');
+    goTab('report',null); buildReport();
+  }, 500);
 }
 
 // ── REFUNDS ──────────────────────────────────────────────────
