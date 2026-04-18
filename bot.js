@@ -257,7 +257,7 @@ async function handleMessage(msg) {
 
   // /start or help
   if(lower === '/start' || lower === 'help' || lower === '/help') {
-    await tgSend(chatId, `☕ <b>Carroll Street Café POS Bot</b>\n\nCommands:\n• <code>sell [items]</code> — log a sale\n• <code>yes</code> — confirm pending order\n• <code>cancel</code> — cancel pending order\n• <code>report</code> — today's report\n• <code>report week</code> — this week\n• <code>report month</code> — this month\n• <code>menu</code> — see menu\n• <code>staff [name]</code> — set your name\n\n🎙 You can also send a <b>voice note</b> saying the order!\n\nExample: <code>sell 2 lattes, 1 avocado toast, 3 canned sodas</code>`);
+    await tgSend(chatId, `☕ <b>Carroll Street Café POS Bot</b>\n\nCommands:\n• <code>sell [items]</code> — log a sale\n• <code>yes</code> — confirm pending order\n• <code>cancel</code> — cancel pending order\n• <code>refund [amount] [reason]</code> — process a refund\n• <code>report</code> — today's report\n• <code>report week</code> — this week\n• <code>report month</code> — this month\n• <code>menu</code> — see menu\n• <code>staff [name]</code> — set your name\n\n🎙 You can also send a <b>voice note</b> saying the order!\n\nExample: <code>sell 2 lattes, 1 avocado toast, 3 canned sodas</code>\nRefund example: <code>refund 4.50 wrong order</code>`);
     return;
   }
 
@@ -311,6 +311,27 @@ async function handleMessage(msg) {
   if(lower === 'cancel' || lower === '/cancel') {
     sess.pendingItems = null;
     await tgSend(chatId, '❌ Order cancelled.');
+    return;
+  }
+
+  // refund command
+  if(lower.startsWith('refund ') || lower.startsWith('/refund ')) {
+    const parts = text.replace(/^(\/?)refund\s+/i,'').trim().split(' ');
+    const amount = parseFloat(parts[0]);
+    if(!amount || amount <= 0) {
+      await tgSend(chatId, '❌ Usage: <code>refund [amount] [reason]</code>\n\nExample: <code>refund 4.50 wrong order</code>');
+      return;
+    }
+    const reason = parts.slice(1).join(' ') || 'No reason given';
+    const {error} = await sb.from('sales').insert({
+      staff: sess.staff,
+      items: [{name:'REFUND', price:-amount, qty:1}],
+      total: -amount,
+      note: 'Refund: '+reason,
+      source: 'refund'
+    });
+    if(error) { await tgSend(chatId, '❌ Error saving refund: '+error.message); return; }
+    await tgSend(chatId, `↩ <b>Refund processed</b>\n\nAmount: <b>-$${amount.toFixed(2)}</b>\nReason: ${reason}\nBy: ${sess.staff}`);
     return;
   }
 

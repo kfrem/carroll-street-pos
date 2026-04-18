@@ -147,6 +147,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .setting-in{padding:8px 10px;border:1px solid #e8e6e0;border-radius:8px;font-size:13px;background:#fafaf8;color:#1a1a18;width:160px;outline:none}
 .save-settings-btn{margin:14px;width:calc(100% - 28px);padding:13px;background:#2c2b27;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
 
+/* ── REFUND ── */
+.refund-modal{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:400;display:none;align-items:center;justify-content:center;padding:20px}
+.refund-modal.on{display:flex}
+.refund-box{background:#fff;border-radius:20px;padding:26px 20px 20px;width:100%;max-width:400px;animation:slideUp .2s ease}
+.refund-box h3{font-size:17px;font-weight:700;margin-bottom:4px}
+.refund-box .r-sub{font-size:13px;color:#999;margin-bottom:14px}
+.refund-amt{font-size:30px;font-weight:800;color:#e25c4b;margin-bottom:16px}
+.refund-reason{width:100%;padding:12px;border:1px solid #e8e6e0;border-radius:10px;font-size:14px;margin-bottom:12px;background:#fafaf8;outline:none;color:#1a1a18}
+.refund-confirm{width:100%;padding:14px;background:#e25c4b;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px}
+.refund-cancel{width:100%;padding:12px;background:#f0ede6;border:none;border-radius:12px;font-size:14px;color:#666;cursor:pointer}
+.refund-btn{font-size:10px;padding:3px 9px;border:1px solid #e25c4b;color:#e25c4b;background:transparent;border-radius:7px;cursor:pointer;margin-left:5px;vertical-align:middle}
+.log-refund{border-left:3px solid #e25c4b;opacity:0.85}
+
 /* ── TOAST ── */
 .toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#2c2b27;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
@@ -305,6 +318,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="cb-t" id="cb-t"></div>
     </div>
     <button class="view-btn" onclick="goTab('order',null)">View Order</button>
+  </div>
+</div>
+
+<!-- REFUND MODAL -->
+<div class="refund-modal" id="refund-modal">
+  <div class="refund-box">
+    <h3>Process Refund</h3>
+    <div class="r-sub">This will log a negative transaction.</div>
+    <div class="refund-amt" id="refund-amt"></div>
+    <input class="refund-reason" id="refund-reason" placeholder="Reason (e.g. wrong order, customer request…)" />
+    <button class="refund-confirm" onclick="processRefund()">Confirm Refund</button>
+    <button class="refund-cancel" onclick="closeRefund()">Cancel</button>
   </div>
 </div>
 
@@ -628,18 +653,55 @@ async function confirmSale(){
   btn.disabled=false; btn.textContent='✓ Confirm Sale';
 }
 
+// ── REFUNDS ──────────────────────────────────────────────────
+let pendingRefund = null;
+
+function openRefund(saleId, total) {
+  pendingRefund = {saleId, total};
+  document.getElementById('refund-amt').textContent = '-$' + Number(total).toFixed(2);
+  document.getElementById('refund-reason').value = '';
+  document.getElementById('refund-modal').classList.add('on');
+}
+
+function closeRefund() {
+  document.getElementById('refund-modal').classList.remove('on');
+  pendingRefund = null;
+}
+
+async function processRefund() {
+  if(!pendingRefund) return;
+  const reason = document.getElementById('refund-reason').value.trim() || 'No reason given';
+  const amt = Number(pendingRefund.total);
+  const {error} = await sb.from('sales').insert({
+    staff,
+    items: [{name:'REFUND (Sale #'+pendingRefund.saleId+')', price:-amt, qty:1}],
+    total: -amt,
+    note: 'Refund: '+reason,
+    source: 'refund'
+  });
+  if(error){ showToast('Error: '+error.message); return; }
+  showToast('✓ Refund of $'+amt.toFixed(2)+' processed');
+  closeRefund();
+  loadTodaySales();
+}
+
 // ── REPORTS ──────────────────────────────────────────────────
 function buildReport(){
   const d=new Date();
   document.getElementById('r-date').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const today=d.toDateString();
   const s=todaySales.filter(x=>new Date(x.created_at).toDateString()===today);
-  const rev=s.reduce((a,x)=>a+Number(x.total),0);
-  const itms=s.reduce((a,x)=>a+(x.items||[]).reduce((b,i)=>b+i.qty,0),0);
-  document.getElementById('r-rev').textContent='$'+rev.toFixed(2);
-  document.getElementById('r-cnt').textContent=s.length;
+  const sales=s.filter(x=>x.source!=='refund');
+  const refunds=s.filter(x=>x.source==='refund');
+  const gross=sales.reduce((a,x)=>a+Number(x.total),0);
+  const refundTotal=Math.abs(refunds.reduce((a,x)=>a+Number(x.total),0));
+  const net=gross-refundTotal;
+  const itms=sales.reduce((a,x)=>a+(x.items||[]).reduce((b,i)=>b+i.qty,0),0);
+  document.getElementById('r-rev').textContent='$'+net.toFixed(2);
+  document.getElementById('r-rev').title='Gross: $'+gross.toFixed(2)+' | Refunds: -$'+refundTotal.toFixed(2);
+  document.getElementById('r-cnt').textContent=sales.length;
   document.getElementById('r-itms').textContent=itms;
-  document.getElementById('r-avg').textContent=s.length?'$'+(rev/s.length).toFixed(2):'$0.00';
+  document.getElementById('r-avg').textContent=sales.length?'$'+(gross/sales.length).toFixed(2):'$0.00';
 
   // top items
   const imap={};
@@ -662,10 +724,12 @@ function buildReport(){
   // log
   document.getElementById('r-log').innerHTML=[...s].slice(0,30).map(x=>{
     const t=new Date(x.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-    const src=x.source==='telegram'?'<span class="log-src">📱 Telegram</span>':'<span class="log-src">POS</span>';
-    return `<div class="log-card">
-      <div class="log-top"><span>${t}</span><span>$${Number(x.total).toFixed(2)}</span></div>
-      <div class="log-staff">${x.staff} ${src}</div>
+    const isRefund=x.source==='refund';
+    const src=isRefund?'<span class="log-src" style="background:#fde8e6;color:#e25c4b">↩ Refund</span>':x.source==='telegram'?'<span class="log-src">📱 Telegram</span>':'<span class="log-src">POS</span>';
+    const refundBtn=!isRefund?`<button class="refund-btn" onclick="openRefund(${x.id},${x.total})">Refund</button>`:'';
+    return `<div class="log-card${isRefund?' log-refund':''}">
+      <div class="log-top"><span>${t}</span><span style="color:${isRefund?'#e25c4b':'inherit'}">${isRefund?'-':''}$${Math.abs(Number(x.total)).toFixed(2)}</span></div>
+      <div class="log-staff">${x.staff} ${src}${refundBtn}</div>
       <div class="log-items">${(x.items||[]).map(i=>i.qty+'× '+i.name).join(', ')}</div>
       ${x.note?`<div class="log-note">${x.note}</div>`:''}
     </div>`;
