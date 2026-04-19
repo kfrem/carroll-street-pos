@@ -388,6 +388,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="f-row">
           <input class="f-in" id="n-desc" placeholder="Description (optional)" />
         </div>
+        <!-- Image row -->
+        <div class="f-row" style="align-items:center;gap:6px">
+          <input class="f-in" id="n-img" placeholder="Image URL (or tap 📷 to upload)" oninput="previewImg(this.value,'n-img-thumb','n-img-prev')" />
+          <label class="f-btn" style="cursor:pointer;flex-shrink:0;padding:10px 12px" title="Upload photo from device">
+            📷
+            <input type="file" accept="image/*" style="display:none" onchange="uploadMenuImage(this,'n-img','n-img-thumb','n-img-prev')">
+          </label>
+        </div>
+        <div id="n-img-prev" style="display:none;margin-bottom:8px">
+          <img id="n-img-thumb" style="width:100%;height:120px;object-fit:cover;border-radius:10px;border:1px solid #e8e6e0">
+        </div>
         <button class="f-btn f-full" onclick="addNewItem()">+ Add to Menu</button>
       </div>
       <div style="padding:0 14px 8px;font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.8px">All items (tap to edit)</div>
@@ -699,7 +710,7 @@ function buildMenu(){
     grid.className='menu-grid';
     byCat[cat].forEach(item=>{
       const priceStr = item.price2 ? '$'+item.price.toFixed(2)+' / $'+item.price2.toFixed(2) : '$'+item.price.toFixed(2);
-      const imgUrl = PHOTOS[item.id] || FALLBACK_IMG;
+      const imgUrl = item.img || PHOTOS[item.id] || FALLBACK_IMG;
       const card = document.createElement('div');
       card.className='m-card';
       card.innerHTML=`
@@ -1190,7 +1201,10 @@ function buildManage(){
     const row=document.createElement('div');
     row.className='mg-item'+(item.hidden?' mg-hid':'');
     const priceStr=item.price2?'$'+item.price.toFixed(2)+'/$'+item.price2.toFixed(2):'$'+item.price.toFixed(2);
-    row.innerHTML=`<div class="mg-name">${item.name}<span class="mg-cat">${item.cat}</span></div>
+    const thumb=item.img||PHOTOS[item.id]||'';
+    row.innerHTML=`
+      ${thumb?`<img src="${thumb}" style="width:38px;height:38px;object-fit:cover;border-radius:7px;flex-shrink:0;border:1px solid #e8e6e0" onerror="this.style.display='none'">`:'<div style="width:38px;height:38px;border-radius:7px;background:#f0ede6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">🍽</div>'}
+      <div class="mg-name" style="flex:1">${item.name}<span class="mg-cat">${item.cat}</span></div>
       <div class="mg-price">${priceStr}</div>
       <button class="ed-btn" onclick="editItem(${item.id})">${item.hidden?'Show':'Edit'}</button>`;
     list.appendChild(row);
@@ -1207,15 +1221,70 @@ function buildManage(){
 function editItem(id){
   const item=menu.find(i=>i.id===id);
   if(item.hidden){ item.hidden=false; saveMenu(); buildMenu(); buildManage(); return; }
-  const newName=prompt('Name:',item.name); if(newName===null) return;
-  const newPrice=prompt('Price ($):',item.price); if(newPrice===null) return;
-  const newP2=item.price2?prompt('Large price ($):',item.price2):prompt('Large price (blank = single price):','');
-  const hide=confirm('Hide this item from menu?');
-  item.name=newName.trim()||item.name;
-  item.price=parseFloat(newPrice)||item.price;
-  item.price2=newP2&&parseFloat(newP2)?parseFloat(newP2):undefined;
-  item.hidden=hide;
+  // Build edit modal
+  const existing=document.getElementById('edit-modal');
+  if(existing) existing.remove();
+  const currentImg=item.img||PHOTOS[item.id]||'';
+  const modal=document.createElement('div');
+  modal.id='edit-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:520px;padding:22px 18px 32px;animation:slideUp .2s ease">
+      <div style="font-size:16px;font-weight:700;margin-bottom:16px">Edit: ${item.name}</div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.6px;font-weight:700">Photo</div>
+        <div style="position:relative;margin-bottom:8px">
+          <img id="em-thumb" src="${currentImg}" style="width:100%;height:130px;object-fit:cover;border-radius:10px;border:1px solid #e8e6e0;background:#f0ede6;display:${currentImg?'block':'none'}" onerror="this.style.display='none'">
+          <div id="em-placeholder" style="width:100%;height:${currentImg?'0':'130px'};background:#f0ede6;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden">${currentImg?'':'🍽'}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input id="em-img" class="f-in" placeholder="Paste image URL" value="${currentImg}" oninput="previewImg(this.value,'em-thumb','em-placeholder')" style="flex:1;padding:10px 11px;border:1px solid #e8e6e0;border-radius:9px;font-size:14px;background:#fafaf8;color:#1a1a18;outline:none">
+          <label class="f-btn" style="cursor:pointer;flex-shrink:0;padding:10px 14px" title="Upload from device">
+            📷 Upload
+            <input type="file" accept="image/*" style="display:none" onchange="uploadMenuImage(this,'em-img','em-thumb','em-placeholder')">
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1"><div style="font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.6px;font-weight:700">Name</div><input id="em-name" class="f-in" value="${item.name}" style="width:100%;padding:10px 11px;border:1px solid #e8e6e0;border-radius:9px;font-size:14px;background:#fafaf8;color:#1a1a18;outline:none"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1"><div style="font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.6px;font-weight:700">Small price ($)</div><input id="em-price" type="number" step="0.01" class="f-in" value="${item.price}" style="width:100%;padding:10px 11px;border:1px solid #e8e6e0;border-radius:9px;font-size:14px;background:#fafaf8;color:#1a1a18;outline:none"></div>
+        <div style="flex:1"><div style="font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.6px;font-weight:700">Large price ($)</div><input id="em-price2" type="number" step="0.01" class="f-in" value="${item.price2||''}" placeholder="Leave blank = one size" style="width:100%;padding:10px 11px;border:1px solid #e8e6e0;border-radius:9px;font-size:14px;background:#fafaf8;color:#1a1a18;outline:none"></div>
+      </div>
+      <div style="margin-bottom:16px"><div style="font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.6px;font-weight:700">Description</div><input id="em-desc" class="f-in" value="${item.desc||''}" placeholder="Ingredients, allergens…" style="width:100%;padding:10px 11px;border:1px solid #e8e6e0;border-radius:9px;font-size:14px;background:#fafaf8;color:#1a1a18;outline:none"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="saveEditItem(${id})" style="flex:1;padding:14px;background:#2c2b27;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">Save Changes</button>
+        <button onclick="document.getElementById('edit-modal').remove()" style="padding:14px 18px;background:#f0ede6;border:none;border-radius:12px;font-size:14px;color:#666;cursor:pointer">Cancel</button>
+        <button onclick="hideEditItem(${id})" style="padding:14px 18px;background:#fff;border:1px solid #e25c4b;color:#e25c4b;border-radius:12px;font-size:13px;cursor:pointer">Hide</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
+}
+
+function saveEditItem(id){
+  const item=menu.find(i=>i.id===id);
+  const newName=document.getElementById('em-name').value.trim();
+  const newPrice=parseFloat(document.getElementById('em-price').value);
+  const p2=document.getElementById('em-price2').value;
+  const newImg=document.getElementById('em-img').value.trim();
+  if(newName) item.name=newName;
+  if(newPrice) item.price=newPrice;
+  item.price2=p2&&parseFloat(p2)?parseFloat(p2):undefined;
+  item.desc=document.getElementById('em-desc').value.trim();
+  item.img=newImg||undefined;
+  document.getElementById('edit-modal').remove();
   saveMenu(); buildMenu(); buildManage();
+  showToast('✓ '+item.name+' updated');
+}
+
+function hideEditItem(id){
+  const item=menu.find(i=>i.id===id);
+  item.hidden=true;
+  document.getElementById('edit-modal').remove();
+  saveMenu(); buildMenu(); buildManage();
+  showToast(item.name+' hidden from menu');
 }
 
 function addNewItem(){
@@ -1225,10 +1294,12 @@ function addNewItem(){
   const price2=p2v&&parseFloat(p2v)?parseFloat(p2v):undefined;
   const cat=document.getElementById('n-cat').value;
   const desc=document.getElementById('n-desc').value.trim();
+  const img=document.getElementById('n-img').value.trim();
   if(!name||!price||!cat){ showToast('Fill in name, price & category'); return; }
-  menu.push({id:nextId++,cat,name,price,price2,desc,hidden:false});
+  menu.push({id:nextId++,cat,name,price,price2,desc,img:img||undefined,hidden:false});
   saveMenu();
-  ['n-name','n-price','n-price2','n-desc'].forEach(id=>document.getElementById(id).value='');
+  ['n-name','n-price','n-price2','n-desc','n-img'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('n-img-prev').style.display='none';
   buildMenu(); buildManage();
   showToast('✓ '+name+' added');
 }
@@ -1280,6 +1351,37 @@ function showToast(msg){
 
 function updateClock(){
   document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── IMAGE UPLOAD ──────────────────────────────────────────────
+function previewImg(url, thumbId, placeholderId){
+  const thumb=document.getElementById(thumbId);
+  const ph=document.getElementById(placeholderId);
+  if(!thumb) return;
+  if(url){
+    thumb.src=url; thumb.style.display='block';
+    if(ph){ ph.style.height='0'; ph.style.display='none'; }
+  } else {
+    thumb.style.display='none';
+    if(ph){ ph.style.height='130px'; ph.style.display='flex'; }
+  }
+}
+
+async function uploadMenuImage(input, urlInputId, thumbId, placeholderId){
+  const file=input.files[0];
+  if(!file) return;
+  if(file.size > 8*1024*1024){ showToast('Image must be under 8 MB'); return; }
+  const ext=file.name.split('.').pop().toLowerCase().replace('jpeg','jpg');
+  const path=`items/${Date.now()}.${ext}`;
+  showToast('Uploading photo…');
+  // Ensure bucket exists (silently creates if missing)
+  await sb.storage.createBucket('menu-images',{public:true}).catch(()=>{});
+  const {error}=await sb.storage.from('menu-images').upload(path, file, {upsert:true});
+  if(error){ showToast('Upload failed: '+error.message); return; }
+  const {data}=sb.storage.from('menu-images').getPublicUrl(path);
+  document.getElementById(urlInputId).value=data.publicUrl;
+  previewImg(data.publicUrl, thumbId, placeholderId);
+  showToast('✓ Photo uploaded');
 }
 
 // ── STRIPE TERMINAL ───────────────────────────────────────────
